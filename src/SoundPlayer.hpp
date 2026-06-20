@@ -7,6 +7,7 @@
 #include <atomic>
 #include <mutex>
 #include <thread>
+#include <vector>
 
 enum SoundIdx
 {
@@ -104,6 +105,9 @@ struct SoundPlayer
     std::atomic_bool terminateFlag;
     i32 soundBuffersToPlay[3];
     MusicStream backgroundMusic;
+    std::vector<i16> finalMixBuffer;
+    std::vector<i32> accumulationBuffer;
+    std::vector<i16> bgmReadBuffer;
     bool isLooping;
 };
 

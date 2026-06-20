@@ -7,8 +7,10 @@
 #include "Supervisor.hpp"
 #include "ZunMath.hpp"
 #include "graphics/FixedFunctionGL.hpp"
+#ifndef __PSP__
 #include "graphics/Software.hpp"
 #include "graphics/WebGL.hpp"
+#endif
 #include "i18n.hpp"
 #include "utils.hpp"
 
@@ -21,15 +23,25 @@ GfxInterface *g_GfxBackend;
 i32 g_TickCountToEffectiveFramerate;
 f64 g_LastFrameTime;
 
+#ifdef TH06_AUTOTEST_FRAMES
+u32 g_AutotestPresentedFrames;
+#endif
+
 #define FRAME_TIME (1000. / 60.)
 
 static const struct
 {
     const char *name;
     GfxInterface *(*TryInit)();
-} s_RenderBackends[] = {{"GL 2.1 / GL ES 2.0 / WebGL", WebGL::Create},
+} s_RenderBackends[] = {
+#ifdef __PSP__
+    {"PSPGL fixed function", FixedFunctionGL::Init},
+#else
+    {"GL 2.1 / GL ES 2.0 / WebGL", WebGL::Create},
                         {"Fixed function GL(ES)", FixedFunctionGL::Init},
-                        {"Software fallback (VERY SLOW)", Software::Init}};
+    {"Software fallback (VERY SLOW)", Software::Init}
+#endif
+};
 
 RenderResult GameWindow::Render()
 {
@@ -93,7 +105,14 @@ RenderResult GameWindow::Render()
         this->curFrame++;
     }
 
+#if defined(__PSP__) || defined(TH06_AUTOTEST_FRAMES)
+    // PSP presentation is paced by VBlank in SwapBuffers. Waiting for the
+    // wall-clock deadline here as well makes rendering miss that VBlank and
+    // fall to 30 FPS. Autotests likewise advance once per presented frame.
+    if (false)
+#else
     if (g_Supervisor.cfg.windowed || g_Supervisor.ShouldRunAt60Fps())
+#endif
     {
         if (this->curFrame != 0)
         {
@@ -178,6 +197,10 @@ void GameWindow::Present()
     }
 
     g_GfxBackend->SwapBuffers();
+
+#ifdef TH06_AUTOTEST_FRAMES
+    ++g_AutotestPresentedFrames;
+#endif
 
     return;
 }

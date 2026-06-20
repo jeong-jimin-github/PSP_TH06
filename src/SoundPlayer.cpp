@@ -7,6 +7,7 @@
 
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_timer.h>
+#include <algorithm>
 #include <array>
 #include <cmath>
 #include <cstring>
@@ -495,8 +496,10 @@ void SoundPlayer::PlaySoundByIdx(SoundIdx idx)
 
 void SoundPlayer::MixAudio(u32 samples)
 {
-    std::vector<i16> finalBuffer(samples);
-    std::vector<i32> mixBuffer(samples);
+    this->finalMixBuffer.resize(samples);
+    this->accumulationBuffer.resize(samples);
+    std::fill(this->finalMixBuffer.begin(), this->finalMixBuffer.end(), 0);
+    std::fill(this->accumulationBuffer.begin(), this->accumulationBuffer.end(), 0);
     u8 playingChannels = 0;
 
     this->soundBufMutex.lock();
@@ -515,8 +518,8 @@ void SoundPlayer::MixAudio(u32 samples)
 
         for (u32 j = 0; j < samplesToMix; j++)
         {
-            mixBuffer[j * 2] += this->soundBuffers[i].samples[this->soundBuffers[i].pos + j];
-            mixBuffer[j * 2 + 1] += this->soundBuffers[i].samples[this->soundBuffers[i].pos + j];
+            this->accumulationBuffer[j * 2] += this->soundBuffers[i].samples[this->soundBuffers[i].pos + j];
+            this->accumulationBuffer[j * 2 + 1] += this->soundBuffers[i].samples[this->soundBuffers[i].pos + j];
         }
 
         this->soundBuffers[i].pos += samplesToMix;
@@ -548,12 +551,24 @@ void SoundPlayer::MixAudio(u32 samples)
             const u32 samplesToMix =
                 std::min((samples / 2) - samplesMixed, this->backgroundMusic.loopEnd - this->backgroundMusic.pos);
 
+            const u32 stereoSamplesToRead = samplesToMix * BACKGROUND_MUSIC_WAV_NUM_CHANNELS;
+            this->bgmReadBuffer.resize(stereoSamplesToRead);
+            if (SDL_RWread(this->backgroundMusic.srcWav.fileStream, this->bgmReadBuffer.data(), sizeof(i16),
+                           stereoSamplesToRead) != stereoSamplesToRead)
+            {
+                SDL_RWclose(this->backgroundMusic.srcWav.fileStream);
+                this->backgroundMusic.srcWav.fileStream = NULL;
+                break;
+            }
+
             for (u32 j = 0; j < samplesToMix; j++)
             {
-                mixBuffer[samplesMixed + j * 2] +=
-                    ((i16)SDL_ReadLE16(this->backgroundMusic.srcWav.fileStream)) * fadeoutMult;
-                mixBuffer[samplesMixed + j * 2 + 1] +=
-                    ((i16)SDL_ReadLE16(this->backgroundMusic.srcWav.fileStream)) * fadeoutMult;
+                const u32 dst = (samplesMixed + j) * 2;
+                const u32 src = j * 2;
+                this->accumulationBuffer[dst] +=
+                    ((i16)SDL_SwapLE16((u16)this->bgmReadBuffer[src])) * fadeoutMult;
+                this->accumulationBuffer[dst + 1] +=
+                    ((i16)SDL_SwapLE16((u16)this->bgmReadBuffer[src + 1])) * fadeoutMult;
             }
 
             this->backgroundMusic.pos += samplesToMix;
@@ -607,10 +622,10 @@ void SoundPlayer::MixAudio(u32 samples)
         //   a problem, it could be a good idea to convert to float, or to do the division as
         //   fixed point multiplication by the inverse of mixDivisor, depending on what's faster
         //   on any particular platform
-        finalBuffer[i] = mixBuffer[i] / mixDivisor;
+        this->finalMixBuffer[i] = this->accumulationBuffer[i] / mixDivisor;
     }
 
-    SDL_QueueAudio(this->audioDev, finalBuffer.data(), samples * 2);
+    SDL_QueueAudio(this->audioDev, this->finalMixBuffer.data(), samples * sizeof(i16));
 }
 
 // EoSD originally just used this function to manage the streaming of the music WAV file.

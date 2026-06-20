@@ -54,4 +54,8 @@ struct FixedFunctionGL : GfxInterface
   private:
     SDL_Window *window;
     SDL_GLContext glContext;
+#ifdef __PSP__
+    i32 cachedViewport[4] = {80, 16, 320, 240};
+    f32 cachedDepthRange[2] = {0.0f, 1.0f};
+#endif
 };

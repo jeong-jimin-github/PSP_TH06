@@ -1,7 +1,10 @@
 #include <cstddef>
+#include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <new>
 
+#include "FileSystem.hpp"
 #include "pbg3/Pbg3Archive.hpp"
 
 Pbg3Archive **g_Pbg3Archives;
@@ -13,6 +16,7 @@ Pbg3Archive::Pbg3Archive()
     this->entries = NULL;
     this->parser = NULL;
     this->unk = NULL;
+    this->sidecarDirectory[0] = '\0';
 }
 
 i32 Pbg3Archive::ParseHeader()
@@ -109,6 +113,16 @@ i32 Pbg3Archive::FindEntry(const char *path)
     return -1;
 }
 
+u32 Pbg3Archive::GetEntryCount() const
+{
+    return this->numOfEntries;
+}
+
+const char *Pbg3Archive::GetEntryName(u32 entryIdx) const
+{
+    return entryIdx < this->numOfEntries ? this->entries[entryIdx].filename : NULL;
+}
+
 u32 Pbg3Archive::GetEntrySize(u32 entryIdx)
 {
     if (entryIdx >= this->numOfEntries)
@@ -191,149 +205,243 @@ i32 Pbg3Archive::Load(const char *path)
         return false;
     }
 
+    const char *basename = path;
+    for (const char *cursor = path; *cursor != '\0'; ++cursor)
+    {
+        if (*cursor == '/' || *cursor == '\\')
+        {
+            basename = cursor + 1;
+        }
+    }
+    const char *extension = std::strrchr(basename, '.');
+    const size_t stemLength = extension != NULL ? (size_t)(extension - basename) : std::strlen(basename);
+    std::snprintf(this->sidecarDirectory, sizeof(this->sidecarDirectory), "data/%.*s", (int)stemLength, basename);
+
     return this->ParseHeader();
+}
+
+u8 *Pbg3Archive::ReadExtractedEntry(u32 entryIdx)
+{
+    if (entryIdx >= this->numOfEntries || this->sidecarDirectory[0] == '\0')
+    {
+        return NULL;
+    }
+
+    char path[384];
+    std::snprintf(path, sizeof(path), "%s/%s", this->sidecarDirectory, this->entries[entryIdx].filename);
+    FILE *file = FileSystem::FopenUTF8(path, "rb");
+    if (file == NULL)
+    {
+        return NULL;
+    }
+
+    std::fseek(file, 0, SEEK_END);
+    const long fileSize = std::ftell(file);
+    std::fseek(file, 0, SEEK_SET);
+    if (fileSize < 0 || (u32)fileSize != this->entries[entryIdx].uncompressedSize)
+    {
+        std::fclose(file);
+        return NULL;
+    }
+
+    u8 *data = (u8 *)std::malloc(fileSize == 0 ? 1 : (size_t)fileSize);
+    if (data == NULL || (fileSize > 0 && std::fread(data, 1, (size_t)fileSize, file) != (size_t)fileSize))
+    {
+        std::free(data);
+        std::fclose(file);
+        return NULL;
+    }
+
+    std::fclose(file);
+#ifdef __PSP__
+    std::printf("PBG3: using extracted asset %s\n", path);
+#endif
+    return data;
 }
 
 #define LZSS_DICTSIZE 0x2000
 #define LZSS_DICTSIZE_MASK 0x1fff
 #define LZSS_MIN_MATCH 3
 
-#define DEC_NEXT_BIT()                                                                                                 \
-    inBitMask >>= 1;                                                                                                   \
-    if (inBitMask == 0)                                                                                                \
-    {                                                                                                                  \
-        inBitMask = 0x80;                                                                                              \
+namespace
+{
+class Pbg3BitReader
+{
+  public:
+    Pbg3BitReader(const u8 *data, u32 size) : data(data), size(size)
+    {
     }
 
-#define DEC_WRITE_BYTE(data)                                                                                           \
-    *outCursor++ = data;                                                                                               \
-    dict[dictHead] = data;                                                                                             \
-    dictHead = (dictHead + 1) & LZSS_DICTSIZE_MASK;
+    bool ReadBit(u32 &bit)
+    {
+        if (this->mask == 0x80)
+        {
+            if (this->position >= this->size)
+            {
+                return false;
+            }
+            this->current = this->data[this->position++];
+            this->checksum += this->current;
+        }
 
-#define DEC_HANDLE_FETCH_NEW_BYTE()                                                                                    \
-    if (inBitMask == 0x80)                                                                                             \
-    {                                                                                                                  \
-        currByte = *inCursor;                                                                                          \
-        if (inCursor - rawData >= (i32)size)                                                                           \
-        {                                                                                                              \
-            currByte = 0;                                                                                              \
-        }                                                                                                              \
-        else                                                                                                           \
-        {                                                                                                              \
-            inCursor++;                                                                                                \
-        }                                                                                                              \
-        checksum += currByte;                                                                                          \
+        bit = (this->current & this->mask) != 0;
+        this->mask >>= 1;
+        if (this->mask == 0)
+        {
+            this->mask = 0x80;
+        }
+        return true;
     }
 
-#define DEC_READ_FLAG_BIT()                                                                                            \
-    DEC_HANDLE_FETCH_NEW_BYTE();                                                                                       \
-    opcode = currByte & inBitMask;                                                                                     \
-    DEC_NEXT_BIT();
-
-#define DEC_READ_BITS(bitsCount)                                                                                       \
-    outBitMask = 0x01 << (bitsCount - 1);                                                                              \
-    inBits = 0;                                                                                                        \
-    while (outBitMask != 0)                                                                                            \
-    {                                                                                                                  \
-        DEC_HANDLE_FETCH_NEW_BYTE();                                                                                   \
-        if ((currByte & inBitMask) != 0)                                                                               \
-        {                                                                                                              \
-            inBits |= outBitMask;                                                                                      \
-        }                                                                                                              \
-        outBitMask >>= 1;                                                                                              \
-        DEC_NEXT_BIT();                                                                                                \
+    bool ReadBits(u32 count, u32 &value)
+    {
+        value = 0;
+        for (u32 bitIndex = 0; bitIndex < count; ++bitIndex)
+        {
+            u32 bit;
+            if (!this->ReadBit(bit))
+            {
+                return false;
+            }
+            value = (value << 1) | bit;
+        }
+        return true;
     }
+
+    u32 GetChecksum() const
+    {
+        return this->checksum;
+    }
+
+  private:
+    const u8 *data;
+    u32 size;
+    u32 position = 0;
+    u32 current = 0;
+    u32 checksum = 0;
+    u8 mask = 0x80;
+};
+
+#ifdef __PSP__
+void LogDecodeFailure(const char *filename, const char *reason, u32 expectedSize, u32 actualSize, u32 expectedChecksum,
+                      u32 actualChecksum)
+{
+    std::printf("PBG3: %s failed (%s), size %u/%u, checksum %08x/%08x\n", filename, reason,
+                (unsigned int)actualSize, (unsigned int)expectedSize, (unsigned int)actualChecksum,
+                (unsigned int)expectedChecksum);
+}
+#else
+void LogDecodeFailure(const char *, const char *, u32, u32, u32, u32)
+{
+}
+#endif
+} // namespace
 
 u8 *Pbg3Archive::ReadDecompressEntry(u32 entryIdx, const char *filename)
 {
     if (entryIdx >= this->numOfEntries || this->parser == NULL)
         return NULL;
 
-    u32 size = this->GetEntrySize(entryIdx);
-    u8 *out = (u8 *)malloc(size);
+    const u32 outputSize = this->GetEntrySize(entryIdx);
+    u8 *out = (u8 *)malloc(outputSize == 0 ? 1 : outputSize);
     if (out == NULL)
+    {
+        LogDecodeFailure(filename, "output allocation", outputSize, 0, this->entries[entryIdx].checksum, 0);
         return NULL;
+    }
 
-    u8 *outCursor = out;
-
-    u32 expectedCsum;
-    u8 *rawData = this->ReadEntryRaw(&size, &expectedCsum, entryIdx);
+    u32 compressedSize = 0;
+    u32 expectedCsum = this->entries[entryIdx].checksum;
+    u8 *rawData = this->ReadEntryRaw(&compressedSize, &expectedCsum, entryIdx);
 
     if (rawData == NULL)
     {
-        if (out != NULL)
-        {
-            free(out);
-            out = NULL;
-        }
+        LogDecodeFailure(filename, "archive read", outputSize, 0, expectedCsum, 0);
+        free(out);
         return NULL;
     }
 
-    u8 *inCursor = rawData;
-    u8 inBitMask = 0x80;
-    u32 checksum = 0;
-    u32 dictHead = 1;
-
-    u8 dict[LZSS_DICTSIZE];
-
-    // Memset doesn't produce matching assembly
-    for (i32 i = 0; i < LZSS_DICTSIZE; i++)
+    u8 *dict = new (std::nothrow) u8[LZSS_DICTSIZE]();
+    if (dict == NULL)
     {
-        dict[i] = 0;
+        LogDecodeFailure(filename, "dictionary allocation", outputSize, 0, expectedCsum, 0);
+        free(rawData);
+        free(out);
+        return NULL;
     }
 
-    u32 currByte;
-    u32 inBits;
-    u32 outBitMask;
-    u32 matchOffset;
-    u32 opcode;
+    Pbg3BitReader reader(rawData, compressedSize);
+    u32 dictHead = 1;
+    u32 outputPosition = 0;
+    bool success = true;
 
     for (;;)
     {
-        DEC_READ_FLAG_BIT();
+        u32 opcode;
+        if (!reader.ReadBit(opcode))
+        {
+            success = false;
+            break;
+        }
 
-        // Read literal byte from next 8 bits
         if (opcode != 0)
         {
-            DEC_READ_BITS(8);
-            DEC_WRITE_BYTE(inBits);
+            u32 literal;
+            if (!reader.ReadBits(8, literal) || outputPosition >= outputSize)
+            {
+                success = false;
+                break;
+            }
+            out[outputPosition++] = (u8)literal;
+            dict[dictHead] = (u8)literal;
+            dictHead = (dictHead + 1) & LZSS_DICTSIZE_MASK;
         }
-        // Copy from dictionary, 13 bit offset, then 4 bit length
         else
         {
-            DEC_READ_BITS(13);
-
-            matchOffset = inBits;
+            u32 matchOffset;
+            if (!reader.ReadBits(13, matchOffset))
+            {
+                success = false;
+                break;
+            }
             if (matchOffset == 0)
             {
                 break;
             }
 
-            DEC_READ_BITS(4);
-
-            for (i32 i = 0; i <= (i32)inBits + 2; i++)
+            u32 lengthCode;
+            if (!reader.ReadBits(4, lengthCode))
             {
-                u32 c = dict[(matchOffset + i) & LZSS_DICTSIZE_MASK];
-                DEC_WRITE_BYTE(c);
+                success = false;
+                break;
+            }
+
+            const u32 length = lengthCode + LZSS_MIN_MATCH;
+            if (length > outputSize - outputPosition)
+            {
+                success = false;
+                break;
+            }
+            for (u32 i = 0; i < length; ++i)
+            {
+                const u8 value = dict[(matchOffset + i) & LZSS_DICTSIZE_MASK];
+                out[outputPosition++] = value;
+                dict[dictHead] = value;
+                dictHead = (dictHead + 1) & LZSS_DICTSIZE_MASK;
             }
         }
     }
 
-    // Skip past any remaining bits in the data
-    while (inBitMask != 0x80)
-    {
-        DEC_READ_FLAG_BIT();
-    }
-
+    const u32 actualChecksum = reader.GetChecksum();
+    delete[] dict;
     free(rawData);
 
-    if (this->entries[entryIdx].checksum != checksum)
+    if (!success || outputPosition != outputSize || expectedCsum != actualChecksum)
     {
-        if (out != NULL)
-        {
-            free(out);
-            out = NULL;
-        }
+        const char *reason = !success ? "invalid stream" : outputPosition != outputSize ? "output size" : "checksum";
+        LogDecodeFailure(filename, reason, outputSize, outputPosition, expectedCsum, actualChecksum);
+        free(out);
+        out = NULL;
         return NULL;
     }
 

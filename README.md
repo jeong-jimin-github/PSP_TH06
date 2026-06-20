@@ -1,87 +1,122 @@
-[![Discord][discord-badge]][discord] <- click here to join discord server.
+# Touhou 6: The Embodiment of Scarlet Devil — PSP port
 
-[discord]: https://discord.gg/VyGwAjrh9a
-[discord-badge]: https://img.shields.io/discord/1147558514840064030?color=%237289DA&logo=discord&logoColor=%23FFFFFF
+An experimental PSP homebrew port of **Touhou Koumakyou ~ The Embodiment of
+Scarlet Devil** (TH06), based on the `portable` branch of
+[GensokyoClub/th06](https://github.com/GensokyoClub/th06).
 
-This is the readme for the portable fork of EoSD. For the readme of the decomp project, see [here](https://github.com/GensokyoClub/th06/blob/master/README.md).
+This repository contains source code only. It does **not** contain the original
+game executable, DAT archives, music, or other copyrighted game assets. You
+must supply data from a legally obtained copy of the Japanese PC release.
 
-EoSD-portable is a port of Touhou 6 using SDL2 and OpenGL (with a more general renderer abstraction layer hopefully on the way).
-This enables theoretical portability to any system supported by SDL2, with Linux, Windows, and macOS in particular being known to work.
-Builds for the BSDs and other Unices are also almost certainly possible, but may require some slight modifications to the build system.
+## Current status
 
-### Platform Requirements
+- Boots as a standard PSP homebrew `EBOOT.PBP`.
+- Title screen, menus, gameplay, enemies, player shots, sound effects, and WAV
+  music are implemented.
+- The original 640x480 scene is rendered at an exact 1/2 scale inside a
+  centered 320x240 viewport with black borders on the PSP's 480x272 display.
+- Textures and streaming are tuned for the 32 MiB PSP-1000.
+- Frame presentation is synchronized to VBlank to prevent screen tearing.
+- Tested with PPSSPP's PSP-1000 memory model. Real-hardware testing is still
+  recommended for every release.
 
-- SDL2, SDL2-image, and SDL2-ttf support
-- C++20 standard library support
-- A little endian architecture (though big endian support is currently being worked on)
-- OpenGL ES 1.1, OpenGL 1.3, or GL 2.1 / GL ES 2.0 / WebGL support
+This is still an experimental port. Keep a backup of save and replay files.
 
-### Dependencies
+## Requirements
 
-EoSD-portable has the following dependencies:
+- Windows 10 or 11 with PowerShell and WSL2 (Ubuntu is the default)
+- [PSPDEV](https://github.com/pspdev/pspdev) with `psp-cmake`
+- PSP builds of SDL2, SDL2_image, SDL2_ttf, and PSPGL
+- A legally obtained TH06 installation containing:
+  - `CM.DAT`, `ED.DAT`, `IN.DAT`, `MD.DAT`, `ST.DAT`, and `TL.DAT`
+  - `bgm/th06_01.wav` through `bgm/th06_17.wav`
 
-- `SDL2`
-- `SDL2_image`
-- `SDL2_ttf`
-- `libasound` (Optional and Linux-only, enables MIDI support. This will almost always be present as part of a desktop distro.)
+The original Windows executable is never copied or executed by the packaging
+script. It is only hashed, when present, to warn about unexpected game versions.
 
-On Windows and macOS, MIDI support uses the system APIs and needs no extra dependencies.
+## Build and package
 
-In addition, building uses [`premake5`](https://premake.github.io/download) and a compiler that supports C++20.
+Clone the repository and run the packaging script from PowerShell:
 
-#### Building
+```powershell
+git clone https://github.com/jeong-jimin-github/PSP_TH06.git
+cd PSP_TH06
+./scripts/build_psp.ps1 `
+  -SourceDir "D:\Games\TH06" `
+  -Pspdev "/home/your-wsl-user/pspdev"
+```
 
-In the repository root directory, run `premake5` with the desired build system as an argument (a list can be seen by running `premake5 --help`).
-This will output the build files to the `build` directory, and then compilation may be done with the desired build system.
+If PSPDEV is installed at `/usr/local/pspdev`, the `-Pspdev` argument can be
+omitted. Use `-WslDistro` if the WSL distribution is not named `Ubuntu`.
 
-##### Build Options (Use with Premake Invocation)
-`--no-asoundlib`: On Linux, doesn't build MIDI support. Removes libasound as a dev and runtime dependency
-`--use-c23-embed`: Uses `#embed` for resource inclusion instead of a lua script in the Premake file.
+The completed Memory Stick layout is written to:
 
-##### Build Example (Debian-based Linux)
+```text
+build/psp-package/PSP/GAME/TH06/
+```
 
-Obtain dependencies:
+Copy the whole `TH06` directory to `ms0:/PSP/GAME/TH06/`, or launch its
+`EBOOT.PBP` with PPSSPP. The generated package is about 340 MiB because it
+contains the original DAT files, WAV soundtrack, and extracted sidecar assets
+used as a PSP-compatible archive fallback.
 
-`sudo apt install build-essential libsdl2-dev libsdl2-image-dev libsdl2-ttf-dev libasound2-dev`
+After the first successful build, packaging can be repeated without compiling:
 
-Generate makefile:
+```powershell
+./scripts/build_psp.ps1 -SourceDir "D:\Games\TH06" -SkipBuild
+```
 
-`premake5 gmake`
+## Controls
 
-Compile:
+| PSP control | Action |
+| --- | --- |
+| D-pad / analog nub | Move / menu navigation |
+| Cross | Shoot / confirm |
+| Circle | Bomb / back |
+| Square | Focus / slow movement |
+| Start | Pause |
+| Right trigger | Skip dialogue |
 
-`cd build && make -j16`
+## PSP-specific behavior
 
-##### Build Example (macOS)
+- The CPU and bus clocks are set to 333/166 MHz.
+- Static opaque textures use RGB565; masked sprites retain full alpha where
+  needed. Temporary decoded texture data is released after GPU upload.
+- BGM uses streamed PCM WAV data and reusable mixer buffers.
+- MIDI, window mode, and color-depth options are hidden because they are not
+  meaningful on PSP. Music can be set to WAV or Off.
+- Configuration, score data, saves, and replays are written beside the EBOOT.
+  The generated directory must remain writable.
 
-Install the Xcode Command Line Tools (provides the compiler), if not already present:
+## Development build
 
-`xcode-select --install`
+The PSP target can also be configured directly inside WSL:
 
-Obtain dependencies (using [Homebrew](https://brew.sh)):
+```bash
+export PSPDEV=/usr/local/pspdev
+export PATH="$PSPDEV/bin:$PATH"
+psp-cmake -S . -B build/psp -DCMAKE_BUILD_TYPE=Release
+cmake --build build/psp -j2
+```
 
-`brew install premake sdl2 sdl2_image sdl2_ttf`
+`TH06_AUTOTEST_FRAMES`, `TH06_AUTOTEST_INPUT`, and
+`TH06_FORCE_SIDECAR_ASSETS` are test-only CMake options and should remain off
+for release builds.
 
-Generate makefile:
+## Repository policy
 
-`premake5 gmake`
+Do not open issues or pull requests containing original TH06 assets, game
+executables, extracted data, music, or links to unauthorized downloads. Build
+outputs and locally supplied game data are excluded by `.gitignore`.
 
-Compile:
+## Credits and license
 
-`cd build && make -j16`
+- Original game: ZUN / Team Shanghai Alice
+- Portable reimplementation: contributors to
+  [GensokyoClub/th06](https://github.com/GensokyoClub/th06)
+- PSP port: this repository's contributors
 
-### Use
-
-EoSD-portable is designed to be a drop-in replacement for the vanilla EoSD binary.
-You will also need to add a font to your game directory with the filename `msgothic.ttc`.
-This may be the actual MS Gothic, taken from a Windows machine, or a compatible font such as Kochi Gothic.
-EoSD-portable uses the Japanese filenames (e.g. 紅魔郷CM.DAT, 東方紅魔郷.cfg). English and other patches, static or thcrap, do not currently work.
-A Japanese locale is not required.
-
-# Decomp Credits
-
-We would like to extend our thanks to the following individuals for their
-invaluable contributions:
-
-- @EstexNT for porting the [`var_order` pragma](scripts/pragma_var_order.cpp) to
-  MSVC7.
+The source code is distributed under the [GNU GPL v3](LICENSE), following the
+upstream project. Touhou Project, Touhou Koumakyou, and all original game assets
+belong to their respective rights holders. This project is unofficial and is
+not affiliated with or endorsed by Team Shanghai Alice.

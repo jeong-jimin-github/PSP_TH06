@@ -941,6 +941,14 @@ void Player::DrawBullets(Player *p)
     i32 bulletIdx;
     PlayerBullet *bullets;
 
+#ifdef __PSP__
+    // Player shots use the perspective sprite path even though they are
+    // screen-space objects. Draw the batch independently from the stage depth
+    // buffer or their original z=0.495 can be hidden by the 3D background.
+    g_AnmManager->SetProjectionMode(PROJECTION_MODE_PERSPECTIVE);
+    g_AnmManager->SetDepthFunc(DEPTH_FUNC_ALWAYS);
+#endif
+
     bullets = p->bullets;
     for (bulletIdx = 0; bulletIdx < ARRAY_SIZE_SIGNED(p->bullets); bulletIdx++, bullets++)
     {
@@ -954,12 +962,22 @@ void Player::DrawBullets(Player *p)
         }
         g_AnmManager->Draw2(&bullets->sprite);
     }
+
+#ifdef __PSP__
+    g_AnmManager->FlushVertexBuffer();
+    g_AnmManager->SetDepthFunc(DEPTH_FUNC_LEQUAL);
+#endif
 }
 
 void Player::DrawBulletExplosions(Player *p)
 {
     i32 bulletIdx;
     PlayerBullet *bullets;
+
+#ifdef __PSP__
+    g_AnmManager->SetProjectionMode(PROJECTION_MODE_PERSPECTIVE);
+    g_AnmManager->SetDepthFunc(DEPTH_FUNC_ALWAYS);
+#endif
 
     bullets = p->bullets;
     for (bulletIdx = 0; bulletIdx < ARRAY_SIZE_SIGNED(p->bullets); bulletIdx++, bullets++)
@@ -975,6 +993,11 @@ void Player::DrawBulletExplosions(Player *p)
         bullets->sprite.pos.z = 0.4f;
         g_AnmManager->Draw2(&bullets->sprite);
     }
+
+#ifdef __PSP__
+    g_AnmManager->FlushVertexBuffer();
+    g_AnmManager->SetDepthFunc(DEPTH_FUNC_LEQUAL);
+#endif
 }
 
 void Player::StartFireBulletTimer(Player *p)

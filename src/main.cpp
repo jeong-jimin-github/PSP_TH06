@@ -2,6 +2,10 @@
 #include <SDL2/SDL_mouse.h>
 #include <cstdio>
 
+#ifdef __PSP__
+#include <psppower.h>
+#endif
+
 #include "AnmManager.hpp"
 #include "Chain.hpp"
 #include "FileSystem.hpp"
@@ -18,6 +22,12 @@ int main(int argc, char *argv[])
 {
     (void)argc;
     (void)argv;
+
+#ifdef __PSP__
+    // TH06's fixed 60 Hz simulation and software-side vertex preparation need
+    // the PSP's full user-mode clock, especially on dense bullet patterns.
+    scePowerSetClockFrequency(333, 333, 166);
+#endif
 
     i32 renderResult = 0;
     //    MSG msg;
@@ -94,6 +104,13 @@ restart:
         {
             break;
         }
+
+#ifdef TH06_AUTOTEST_FRAMES
+        if (g_AutotestPresentedFrames >= TH06_AUTOTEST_FRAMES)
+        {
+            break;
+        }
+#endif
 
         //        SDL_Delay(1000.0f / 60.0f);
 

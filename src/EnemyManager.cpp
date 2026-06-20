@@ -768,6 +768,14 @@ ChainCallbackResult EnemyManager::OnDraw(EnemyManager *mgr)
     i32 curEnemyVmIdx;
     i32 curEnemyIdx;
 
+#ifdef __PSP__
+    // Enemy sprites share the perspective sprite path with player shots. On
+    // PSPGL their original z values can lose against the stage depth buffer,
+    // leaving active enemies invisible while collision still works.
+    g_AnmManager->SetProjectionMode(PROJECTION_MODE_PERSPECTIVE);
+    g_AnmManager->SetDepthFunc(DEPTH_FUNC_ALWAYS);
+#endif
+
     for (curEnemy = &mgr->enemies[0], curEnemyIdx = 0; curEnemyIdx < ARRAY_SIZE_SIGNED(mgr->enemies) - 1;
          curEnemyIdx++, curEnemy++)
     {
@@ -816,6 +824,12 @@ ChainCallbackResult EnemyManager::OnDraw(EnemyManager *mgr)
             }
         }
     }
+
+#ifdef __PSP__
+    g_AnmManager->FlushVertexBuffer();
+    g_AnmManager->SetDepthFunc(DEPTH_FUNC_LEQUAL);
+#endif
+
     return CHAIN_CALLBACK_RESULT_CONTINUE;
 }
 

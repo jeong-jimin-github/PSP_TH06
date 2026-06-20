@@ -179,7 +179,8 @@ struct AnmManager
     ZunResult AddSpriteToDrawBuffer(VertexTex1Xyzrhw *vertices);
 
     ZunResult CreateEmptyTexture(i32 textureIdx, u32 width, u32 height, i32 textureFormat);
-    ZunResult LoadTexture(i32 textureIdx, const char *textureName, i32 textureFormat, ZunColor colorKey);
+    ZunResult LoadTexture(i32 textureIdx, const char *textureName, i32 textureFormat, ZunColor colorKey,
+                          bool preserveFullAlpha = false);
     ZunResult LoadTextureAlphaChannel(i32 textureIdx, const char *textureName, i32 textureFormat, ZunColor colorKey);
     void ReleaseTexture(i32 textureIdx);
     void TakeScreenshotIfRequested();
@@ -296,6 +297,12 @@ struct AnmManager
 
         if (projectionMode == PROJECTION_MODE_ORTHOGRAPHIC)
         {
+#ifdef __PSP__
+            // PSPGL's depth mapping for the D3D-style RHW sprite projection
+            // differs from desktop GL. Draw ordered 2D sprites without testing
+            // against the stage depth buffer; the draw chain supplies ordering.
+            this->SetDepthFunc(DEPTH_FUNC_ALWAYS);
+#endif
             ZunMatrix identityMatrix;
 
             memcpy(this->perspectiveMatrixBackup, this->dirtyTransformMatrices, sizeof(this->perspectiveMatrixBackup));
@@ -312,6 +319,9 @@ struct AnmManager
             return;
         }
 
+#ifdef __PSP__
+        this->SetDepthFunc(DEPTH_FUNC_LEQUAL);
+#endif
         g_Supervisor.viewport.Set();
 
         this->SetTransformMatrix(MATRIX_VIEW, this->perspectiveMatrixBackup[MATRIX_VIEW]);
@@ -441,6 +451,7 @@ struct AnmManager
     AnmRawEntry *anmFiles[128];
     u32 anmFilesSpriteIndexOffsets[128];
     SDL_Surface *surfaces[32];
+    GfxTextureHandle surfaceTextureHandles[32];
     //    SDL_Surface *surfacesBis[32];
     //    D3DXIMAGE_INFO surfaceSourceInfo[32];
     // GLuint currentTextureHandle;

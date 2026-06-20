@@ -71,8 +71,10 @@ void GameErrorContext::Flush()
         }
 
         logFile = FileSystem::FopenUTF8("./log.txt", "w");
-
-        std::fprintf(logFile, "%s", m_Buffer);
-        std::fclose(logFile);
+        if (logFile != NULL)
+        {
+            std::fprintf(logFile, "%s", m_Buffer);
+            std::fclose(logFile);
+        }
     }
 }

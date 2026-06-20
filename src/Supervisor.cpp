@@ -29,7 +29,11 @@ Supervisor g_Supervisor;
 ControllerMapping g_ControllerMapping = {
     (i16)SDL_CONTROLLER_BUTTON_A,
     (i16)SDL_CONTROLLER_BUTTON_B,
+#ifdef __PSP__
+    (i16)SDL_CONTROLLER_BUTTON_X,
+#else
     (i16)SDL_CONTROLLER_BUTTON_LEFTSHOULDER,
+#endif
     (i16)SDL_CONTROLLER_BUTTON_START,
     (i16)SDL_CONTROLLER_BUTTON_DPAD_UP,
     (i16)SDL_CONTROLLER_BUTTON_DPAD_DOWN,
@@ -432,6 +436,23 @@ ZunResult Supervisor::SetupDInput(Supervisor *supervisor)
     //    supervisor->keyboard->Acquire();
     g_GameErrorContext.Log(TH_ERR_DIRECTINPUT_INITIALIZED);
 
+#ifdef __PSP__
+    // SDL's PSP joystick backend exposes the built-in pad, but deliberately
+    // leaves its GameController mapping empty. Add the physical button order
+    // used by that backend so the portable input layer can use it normally.
+    if (SDL_NumJoysticks() > 0)
+    {
+        char guid[33];
+        SDL_JoystickGetGUIDString(SDL_JoystickGetDeviceGUID(0), guid, sizeof(guid));
+        char mapping[512];
+        std::snprintf(mapping, sizeof(mapping),
+                      "%s,PSP builtin joypad,a:b2,b:b1,x:b3,y:b0,leftshoulder:b4,rightshoulder:b5,"
+                      "dpdown:b6,dpleft:b7,dpup:b8,dpright:b9,back:b10,start:b11,leftx:a0,lefty:a1,platform:PSP",
+                      guid);
+        SDL_GameControllerAddMapping(mapping);
+    }
+#endif
+
     int numSticks = SDL_NumJoysticks();
 
     for (int i = 0; i < numSticks; i++)
@@ -713,6 +734,19 @@ ZunResult Supervisor::LoadConfig(const char *path)
         g_ControllerMapping = g_Supervisor.cfg.controllerMapping;
         free((void *)data);
     }
+#ifdef __PSP__
+    // PSPGL stores textures in the PSP's very small VRAM/user-memory budget.
+    // Use the original game's supported 16-bit texture mode on every PSP,
+    // cutting static texture memory roughly in half (essential on PSP-1000).
+    g_Supervisor.cfg.opts |= (1 << GCOS_FORCE_16BIT_COLOR_MODE);
+    g_Supervisor.cfg.colorMode16bit = 1;
+    g_Supervisor.cfg.windowed = 0;
+
+    // The PSP build has no system MIDI synthesizer. Never retain MIDI from an
+    // older configuration, since entering that path starts an unsupported
+    // timer/device sequence and can stall the game.
+    g_Supervisor.cfg.musicMode = WAV;
+#endif
     if (((this->cfg.opts >> GCOS_DONT_USE_VERTEX_BUF) & 1) != 0)
     {
         g_GameErrorContext.Log(TH_ERR_NO_VERTEX_BUFFER);
@@ -810,6 +844,13 @@ ZunResult Supervisor::PlayAudio(const char *path)
     char wavName[256];
     char wavPos[256];
     char *pathExtension;
+
+#ifdef __PSP__
+    if (g_Supervisor.cfg.musicMode == MIDI)
+    {
+        g_Supervisor.cfg.musicMode = WAV;
+    }
+#endif
 
     if (g_Supervisor.cfg.musicMode == MIDI)
     {

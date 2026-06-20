@@ -1645,7 +1645,23 @@ u32 MainMenu::OnUpdateOptionsMenu()
     AnmVm *optionsVm;
     i32 i;
 
-    MoveCursor(this, 9);
+    CursorMovement cursorMovement = MoveCursor(this, 9);
+#ifdef __PSP__
+    // Color depth and display mode are fixed by the PSP backend. Skip their
+    // rows rather than allowing settings that cannot have any effect.
+    while (this->cursor == CURSOR_OPTIONS_POS_COLORMODE || this->cursor == CURSOR_OPTIONS_POS_SCREENMODE)
+    {
+        this->cursor += cursorMovement == CURSOR_MOVE_UP ? -1 : 1;
+        if (this->cursor < 0)
+        {
+            this->cursor = CURSOR_OPTIONS_POS_EXIT;
+        }
+        else if (this->cursor > CURSOR_OPTIONS_POS_EXIT)
+        {
+            this->cursor = CURSOR_OPTIONS_POS_LIFECOUNT;
+        }
+    }
+#endif
     optionsVm = &this->vm[8];
     for (i = 0; i < 9; i++)
     {
@@ -1688,6 +1704,17 @@ u32 MainMenu::OnUpdateOptionsMenu()
     {
         this->ColorMenuItem(optionsVm, CURSOR_OPTIONS_POS_SCREENMODE, i, this->windowed);
     }
+#ifdef __PSP__
+    // Hide Color Mode, Window Mode and the unsupported MIDI value. The WAV
+    // and Off music choices remain available.
+    this->vm[10].flags.isVisible = 0;
+    this->vm[23].flags.isVisible = 0;
+    this->vm[24].flags.isVisible = 0;
+    this->vm[72].flags.isVisible = 0;
+    this->vm[75].flags.isVisible = 0;
+    this->vm[76].flags.isVisible = 0;
+    this->vm[79].flags.isVisible = 0;
+#endif
     if (this->stateTimer >= 32)
     {
         if (WAS_PRESSED_PERIODIC(TH_BUTTON_LEFT))
@@ -1728,11 +1755,15 @@ u32 MainMenu::OnUpdateOptionsMenu()
 
                 g_SoundPlayer.PlaySoundByIdx(SOUND_MOVE_MENU);
                 g_Supervisor.StopAudio();
+#ifdef __PSP__
+                g_Supervisor.cfg.musicMode = g_Supervisor.cfg.musicMode == WAV ? OFF : WAV;
+#else
                 if (g_Supervisor.cfg.musicMode <= OFF)
                 {
                     g_Supervisor.cfg.musicMode = MIDI + 1;
                 }
                 g_Supervisor.cfg.musicMode -= 1;
+#endif
                 g_Supervisor.PlayAudio("bgm/th06_01.mid");
                 break;
 
@@ -1797,11 +1828,15 @@ u32 MainMenu::OnUpdateOptionsMenu()
 
                 g_SoundPlayer.PlaySoundByIdx(SOUND_MOVE_MENU);
                 g_Supervisor.StopAudio();
+#ifdef __PSP__
+                g_Supervisor.cfg.musicMode = g_Supervisor.cfg.musicMode == WAV ? OFF : WAV;
+#else
                 g_Supervisor.cfg.musicMode += 1;
                 if (g_Supervisor.cfg.musicMode >= MIDI + 1)
                 {
                     g_Supervisor.cfg.musicMode = OFF;
                 }
+#endif
                 g_Supervisor.PlayAudio("bgm/th06_01.mid");
                 break;
             case CURSOR_OPTIONS_POS_PLAYSOUNDS:
@@ -1972,6 +2007,14 @@ ChainCallbackResult MainMenu::OnDraw(MainMenu *menu)
     }
     for (vmIdx = 0; vmIdx < 98; vmIdx++, curVm++)
     {
+#ifdef __PSP__
+        if (menu->gameState == STATE_OPTIONS &&
+            (vmIdx == 10 || vmIdx == 23 || vmIdx == 24 || vmIdx == 72 || vmIdx == 75 || vmIdx == 76 ||
+             vmIdx == 79))
+        {
+            continue;
+        }
+#endif
         if (curVm->sprite == NULL)
         {
             shouldDraw = false;

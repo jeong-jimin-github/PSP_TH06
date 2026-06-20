@@ -3,7 +3,11 @@
 #define TH_LANG TH_JP
 
 // JP
+#ifdef __PSP__
+#define TH_JP_CONFIG_FILE "th06.cfg"
+#else
 #define TH_JP_CONFIG_FILE "東方紅魔郷.cfg"
+#endif
 #define TH_JP_WINDOW_TITLE "東方紅魔郷　〜 the Embodiment of Scarlet Devil"
 #define TH_JP_DBG_MAINMENU_VRAM "Debug : title 開始 VRAM = %d\n"
 #define TH_JP_DBG_RESULTSCREEN_COUNAT "counat = %d\n"
@@ -95,12 +99,21 @@
 
 #define TH_JP_UNKNOWN_SPELLCARD "？？？？？"
 
+#ifdef __PSP__
+#define TH_JP_CM_DAT_FILE "CM.DAT"
+#define TH_JP_ED_DAT_FILE "ED.DAT"
+#define TH_JP_IN_DAT_FILE "IN.DAT"
+#define TH_JP_MD_DAT_FILE "MD.DAT"
+#define TH_JP_ST_DAT_FILE "ST.DAT"
+#define TH_JP_TL_DAT_FILE "TL.DAT"
+#else
 #define TH_JP_CM_DAT_FILE "紅魔郷CM.DAT"
 #define TH_JP_ED_DAT_FILE "紅魔郷ED.DAT"
 #define TH_JP_IN_DAT_FILE "紅魔郷IN.DAT"
 #define TH_JP_MD_DAT_FILE "紅魔郷MD.DAT"
 #define TH_JP_ST_DAT_FILE "紅魔郷ST.DAT"
 #define TH_JP_TL_DAT_FILE "紅魔郷TL.DAT"
+#endif
 
 // EN
 #define TH_EN_CONFIG_FILE "th06.cfg"

@@ -9,6 +9,55 @@ GLFuncTable g_glFuncTable;
 
 void GLFuncTable::ResolveFunctions(bool glesContext)
 {
+#ifdef __PSP__
+    // PSPGL exposes the OpenGL 1.x entry points as normal link-time symbols.
+    // Its eglGetProcAddress implementation only resolves extensions, so using
+    // SDL_GL_GetProcAddress for core functions leaves this table full of null
+    // pointers on real hardware and PPSSPP.
+#define DIRECT_RESOLVE_FUNCTION(func) this->func = &::func;
+    DIRECT_RESOLVE_FUNCTION(glAlphaFunc)
+    DIRECT_RESOLVE_FUNCTION(glBindTexture)
+    DIRECT_RESOLVE_FUNCTION(glBlendFunc)
+    DIRECT_RESOLVE_FUNCTION(glClear)
+    DIRECT_RESOLVE_FUNCTION(glClearColor)
+    DIRECT_RESOLVE_FUNCTION(glColorPointer)
+    DIRECT_RESOLVE_FUNCTION(glDeleteTextures)
+    DIRECT_RESOLVE_FUNCTION(glDepthFunc)
+    DIRECT_RESOLVE_FUNCTION(glDepthMask)
+    DIRECT_RESOLVE_FUNCTION(glDisableClientState)
+    DIRECT_RESOLVE_FUNCTION(glDrawArrays)
+    DIRECT_RESOLVE_FUNCTION(glEnable)
+    DIRECT_RESOLVE_FUNCTION(glEnableClientState)
+    DIRECT_RESOLVE_FUNCTION(glFogf)
+    DIRECT_RESOLVE_FUNCTION(glFogfv)
+    DIRECT_RESOLVE_FUNCTION(glGenTextures)
+    DIRECT_RESOLVE_FUNCTION(glGetError)
+    DIRECT_RESOLVE_FUNCTION(glGetFloatv)
+    DIRECT_RESOLVE_FUNCTION(glGetIntegerv)
+    DIRECT_RESOLVE_FUNCTION(glLoadIdentity)
+    DIRECT_RESOLVE_FUNCTION(glLoadMatrixf)
+    DIRECT_RESOLVE_FUNCTION(glMatrixMode)
+    DIRECT_RESOLVE_FUNCTION(glMultMatrixf)
+    DIRECT_RESOLVE_FUNCTION(glPopMatrix)
+    DIRECT_RESOLVE_FUNCTION(glPushMatrix)
+    DIRECT_RESOLVE_FUNCTION(glReadPixels)
+    DIRECT_RESOLVE_FUNCTION(glShadeModel)
+    DIRECT_RESOLVE_FUNCTION(glTexCoordPointer)
+    DIRECT_RESOLVE_FUNCTION(glTexEnvfv)
+    DIRECT_RESOLVE_FUNCTION(glTexEnvi)
+    DIRECT_RESOLVE_FUNCTION(glTexImage2D)
+    DIRECT_RESOLVE_FUNCTION(glTexParameteri)
+    DIRECT_RESOLVE_FUNCTION(glTexSubImage2D)
+    DIRECT_RESOLVE_FUNCTION(glVertexPointer)
+    DIRECT_RESOLVE_FUNCTION(glViewport)
+#undef DIRECT_RESOLVE_FUNCTION
+
+    this->glClearDepth = &::glClearDepth;
+    this->glDepthRange = &::glDepthRange;
+    this->isGlesContext = false;
+    return;
+#endif
+
     TRY_RESOLVE_FUNCTION(glAlphaFunc)
     TRY_RESOLVE_FUNCTION(glBindTexture)
     TRY_RESOLVE_FUNCTION(glBlendFunc)

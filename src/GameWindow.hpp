@@ -22,6 +22,14 @@
 #define GAME_WINDOW_HEIGHT_REAL (GAME_WINDOW_HEIGHT)
 #endif
 
+#ifdef __PSP__
+// Exact 1/2 scale of the original 640x480 image. Avoid fractional viewport
+// scaling on PSP and leave true black borders on every side of the 480x272 LCD.
+#define VIEWPORT_WIDTH 320
+#define VIEWPORT_OFF_X 80
+#define VIEWPORT_HEIGHT 240
+#define VIEWPORT_OFF_Y 16
+#else
 #define VIEWPORT_WIDTH GAME_WINDOW_WIDTH_REAL
 #define VIEWPORT_OFF_X 0
 #define VIEWPORT_HEIGHT GAME_WINDOW_HEIGHT_REAL
@@ -38,6 +46,7 @@
 #undef VIEWPORT_OFF_Y
 #define VIEWPORT_HEIGHT ((u32)((GAME_WINDOW_WIDTH_REAL / 4.0f) * 3.0f))
 #define VIEWPORT_OFF_Y ((GAME_WINDOW_HEIGHT_REAL - VIEWPORT_HEIGHT) / 2)
+#endif
 #endif
 
 #define WIDTH_RESOLUTION_SCALE (((f32)VIEWPORT_WIDTH) / GAME_WINDOW_WIDTH)
@@ -73,3 +82,7 @@ extern GameWindow g_GameWindow;
 extern i32 g_TickCountToEffectiveFramerate;
 extern double g_LastFrameTime;
 extern GfxInterface *g_GfxBackend;
+
+#ifdef TH06_AUTOTEST_FRAMES
+extern u32 g_AutotestPresentedFrames;
+#endif

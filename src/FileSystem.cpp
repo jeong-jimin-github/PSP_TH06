@@ -6,6 +6,8 @@
 #include <direct.h>
 #include <new>
 #include <windows.h>
+#elif defined(__PSP__)
+#include <sys/stat.h>
 #elif __cplusplus >= 201703L
 #include <filesystem>
 #else // Assume POSIX
@@ -50,6 +52,8 @@ void FileSystem::CreateDir(const char *path)
 {
 #ifdef _WIN32
     _mkdir(path);
+#elif defined(__PSP__)
+    mkdir(path, 0777);
 #elif __cplusplus >= 201703L
     auto p = std::filesystem::path(path);
     std::filesystem::create_directory(p);
@@ -110,7 +114,15 @@ u8 *FileSystem::OpenPath(const char *filepath, int isExternalResource)
     if (entryIdx >= 0)
     {
         utils::DebugPrint2("%s Decode ... \n", entryname);
+#ifdef TH06_FORCE_SIDECAR_ASSETS
+        data = NULL;
+#else
         data = g_Pbg3Archives[pbg3Idx]->ReadDecompressEntry(entryIdx, entryname);
+#endif
+        if (data == NULL)
+        {
+            data = g_Pbg3Archives[pbg3Idx]->ReadExtractedEntry(entryIdx);
+        }
         g_LastFileSize = g_Pbg3Archives[pbg3Idx]->GetEntrySize(entryIdx);
     }
     else

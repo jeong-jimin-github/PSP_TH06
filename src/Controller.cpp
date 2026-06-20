@@ -386,6 +386,33 @@ u16 Controller::GetInput(void)
     buttons |= KEYBOARD_KEY_PRESSED(TH_BUTTON_S, SDL_SCANCODE_S);
     buttons |= KEYBOARD_KEY_PRESSED(TH_BUTTON_ENTER, SDL_SCANCODE_RETURN);
 
+#ifdef TH06_AUTOTEST_INPUT
+    static u32 autotestInputFrame = 0;
+    autotestInputFrame++;
+
+    // Advance through the attract/title, difficulty, character and shot-type
+    // screens. The spacing intentionally allows each menu transition to settle.
+    if (autotestInputFrame == 600 || autotestInputFrame == 660 || autotestInputFrame == 720 ||
+        autotestInputFrame == 780 || autotestInputFrame == 840)
+    {
+        buttons |= TH_BUTTON_SHOOT;
+    }
+
+    // Exercise continuous gameplay input after the menu sequence.
+    if (autotestInputFrame >= 880)
+    {
+        buttons |= TH_BUTTON_SHOOT;
+        if (((autotestInputFrame / 120) & 1) == 0)
+        {
+            buttons |= TH_BUTTON_LEFT;
+        }
+        else
+        {
+            buttons |= TH_BUTTON_RIGHT;
+        }
+    }
+#endif
+
     return Controller::GetControllerInput(buttons);
 }
 
@@ -393,10 +420,12 @@ void Controller::ResetKeyboard(void)
 {
     keyboardState = (u8 *)SDL_GetKeyboardState(NULL);
 
+#ifndef __PSP__
     // Ensure IMEs are disabled so they don't interfer with EoSD input
     //   Doesn't work on Wine :( but hopefully works on Windows?
     //   We both start and stop due to this bug https://github.com/libsdl-org/SDL/issues/13172
     //   Since I can't test on Windows, it's good to be on the safe side
     SDL_StartTextInput();
     SDL_StopTextInput();
+#endif
 }

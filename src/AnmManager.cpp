@@ -151,11 +151,7 @@ void AnmManager::ReleaseSurfaces(void)
 {
     for (i32 idx = 0; idx < ARRAY_SIZE_SIGNED(this->surfaces); idx++)
     {
-        if (this->surfaces[idx] != NULL)
-        {
-            SDL_FreeSurface(this->surfaces[idx]);
-            this->surfaces[idx] = NULL;
-        }
+        this->ReleaseSurface(idx);
     }
 }
 
@@ -304,14 +300,19 @@ void AnmManager::SetupVertexBuffer()
     }
 }
 
-ZunResult AnmManager::LoadTexture(i32 textureIdx, const char *textureName, i32 textureFormat, ZunColor colorKey)
+ZunResult AnmManager::LoadTexture(i32 textureIdx, const char *textureName, i32 textureFormat, ZunColor colorKey,
+                                  bool preserveFullAlpha)
 {
     u8 *rawTextureData;
     SDL_Surface *textureSurface;
 
     ReleaseTexture(textureIdx);
 
-    if (((g_Supervisor.cfg.opts >> GCOS_FORCE_16BIT_COLOR_MODE) & 1) != 0)
+    if (preserveFullAlpha)
+    {
+        textureFormat = TEX_FMT_A8R8G8B8;
+    }
+    else if (((g_Supervisor.cfg.opts >> GCOS_FORCE_16BIT_COLOR_MODE) & 1) != 0)
     {
         if (g_TextureFormatSDLMapping[textureFormat] == SDL_PIXELFORMAT_RGBA32 ||
             g_TextureFormatSDLMapping[textureFormat] == SDL_PIXELFORMAT_UNKNOWN)
@@ -327,6 +328,11 @@ ZunResult AnmManager::LoadTexture(i32 textureIdx, const char *textureName, i32 t
     textureSurface = LoadToSurfaceWithFormat(textureName, g_TextureFormatSDLMapping[textureFormat],
                                              (u8 **)&this->textures[textureIdx].fileData);
 
+    if (textureSurface == NULL)
+    {
+        return ZUN_ERROR;
+    }
+
     // Hideous hack to account for ANM entries that report a different texture size than the actual size
     const AnmRawEntry *entry = this->anmFiles[textureIdx];
     if (textureSurface->w != entry->width || textureSurface->h != entry->height)
@@ -339,11 +345,6 @@ ZunResult AnmManager::LoadTexture(i32 textureIdx, const char *textureName, i32 t
         SDL_BlitScaled(textureSurface, &srcRect, textureSurface2, &dstRect);
         SDL_FreeSurface(textureSurface);
         textureSurface = textureSurface2;
-    }
-
-    if (textureSurface == NULL)
-    {
-        return ZUN_ERROR;
     }
 
     CreateTextureObject();
@@ -395,7 +396,6 @@ ZunResult AnmManager::LoadTextureAlphaChannel(i32 textureIdx, const char *textur
     u8 *dstData8;
     const u8 *srcData8;
     u16 *dstData16;
-    const u16 *srcData16;
     u32 x;
     u32 y;
 
@@ -408,7 +408,11 @@ ZunResult AnmManager::LoadTextureAlphaChannel(i32 textureIdx, const char *textur
         return ZUN_ERROR;
     }
 
-    alphaSurface = LoadToSurfaceWithFormat(textureName, g_TextureFormatSDLMapping[textureFormat], NULL);
+    // Alpha companion PNGs are grayscale masks. Always decode them as RGBA32
+    // and read one complete pixel at a time. Treating this 32-bit surface as
+    // u16 caused every other half-pixel to become alpha, producing vertical
+    // stripes and fully transparent player/enemy sprites on PSP.
+    alphaSurface = LoadToSurfaceWithFormat(textureName, SDL_PIXELFORMAT_RGBA32, NULL);
 
     if (alphaSurface == NULL)
     {
@@ -443,12 +447,12 @@ ZunResult AnmManager::LoadTextureAlphaChannel(i32 textureIdx, const char *textur
         dstData16 = (u16 *)dstData;
         for (y = 0; y < textureDesc->height; y++)
         {
-            srcData16 = (u16 *)(srcData + alphaSurface->pitch * y);
+            srcData8 = srcData + alphaSurface->pitch * y;
 
-            for (x = 0; x < textureDesc->width; x++, srcData16++, dstData16++)
+            for (x = 0; x < textureDesc->width; x++, srcData8 += 4, dstData16++)
             {
                 *dstData16 &= 0xfffe;
-                *dstData16 |= (*srcData16 & 0x8000) >> 15;
+                *dstData16 |= (srcData8[0] & 0x80) >> 7;
             }
         }
         break;
@@ -457,12 +461,12 @@ ZunResult AnmManager::LoadTextureAlphaChannel(i32 textureIdx, const char *textur
         dstData16 = (u16 *)dstData;
         for (y = 0; y < textureDesc->height; y++)
         {
-            srcData16 = (u16 *)(srcData + alphaSurface->pitch * y);
+            srcData8 = srcData + alphaSurface->pitch * y;
 
-            for (x = 0; x < textureDesc->width; x++, srcData16++, dstData16++)
+            for (x = 0; x < textureDesc->width; x++, srcData8 += 4, dstData16++)
             {
                 *dstData16 &= 0xfff0;
-                *dstData16 |= (*srcData16 & 0xf000) >> 12;
+                *dstData16 |= (srcData8[0] & 0xf0) >> 4;
             }
         }
         break;
@@ -473,7 +477,7 @@ ZunResult AnmManager::LoadTextureAlphaChannel(i32 textureIdx, const char *textur
 
     this->SetCurrentTexture(this->textures[textureIdx].handle);
     g_GfxBackend->SetTextureImage(textureDesc->width, textureDesc->height, PIXEL_RGBA,
-                                  g_TextureFormatTypeMapping[textureFormat], textureDesc->textureData);
+                                  g_TextureFormatTypeMapping[textureDesc->format], textureDesc->textureData);
 
     return ZUN_SUCCESS;
 }
@@ -518,11 +522,22 @@ ZunResult AnmManager::LoadAnm(i32 anmIdx, const char *path, i32 spriteIdxOffset)
         anm->format = TEX_FMT_A8R8G8B8;
     }
 
-    if (*anmName == '@')
+    const bool isDynamicTexture = *anmName == '@';
+    // PSPGL's packed 4444 path does not preserve EoSD's separately supplied
+    // alpha masks reliably. Keep only masked assets (players, enemies and UI)
+    // in RGBA8888; opaque textures still use RGB565 for PSP-1000 memory use.
+    const bool preserveFullAlpha =
+#ifdef __PSP__
+        anm->alphaNameOffset != 0;
+#else
+        false;
+#endif
+
+    if (isDynamicTexture)
     {
         this->CreateEmptyTexture(anm->textureIdx, anm->width, anm->height, anm->format);
     }
-    else if (this->LoadTexture(anm->textureIdx, anmName, anm->format, anm->colorKey) != ZUN_SUCCESS)
+    else if (this->LoadTexture(anm->textureIdx, anmName, anm->format, anm->colorKey, preserveFullAlpha) != ZUN_SUCCESS)
     {
         g_GameErrorContext.Fatal(TH_ERR_ANMMANAGER_TEXTURE_CORRUPTED, anmName);
         return ZUN_ERROR;
@@ -536,6 +551,16 @@ ZunResult AnmManager::LoadAnm(i32 anmIdx, const char *path, i32 spriteIdxOffset)
             g_GameErrorContext.Fatal(TH_ERR_ANMMANAGER_TEXTURE_CORRUPTED, anmName);
             return ZUN_ERROR;
         }
+    }
+
+    // Compressed source bytes and decoded static pixels are no longer needed
+    // after the GL upload. Dynamic text textures retain their CPU copy.
+    if (!isDynamicTexture)
+    {
+        free((void *)this->textures[anm->textureIdx].fileData);
+        this->textures[anm->textureIdx].fileData = NULL;
+        delete[] this->textures[anm->textureIdx].textureData;
+        this->textures[anm->textureIdx].textureData = NULL;
     }
 
     anm->spriteIdxOffset = spriteIdxOffset;
@@ -1949,6 +1974,16 @@ ZunResult AnmManager::LoadSurface(i32 surfaceIdx, const char *path)
 
 void AnmManager::ReleaseSurface(i32 surfaceIdx)
 {
+    if (this->surfaceTextureHandles[surfaceIdx] != 0)
+    {
+        if (this->currentTextureHandle == this->surfaceTextureHandles[surfaceIdx])
+        {
+            this->SetCurrentTexture(0);
+        }
+        g_GfxBackend->DeleteTexture(this->surfaceTextureHandles[surfaceIdx]);
+        this->surfaceTextureHandles[surfaceIdx] = 0;
+    }
+
     if (this->surfaces[surfaceIdx] != NULL)
     {
         SDL_FreeSurface(this->surfaces[surfaceIdx]);
@@ -2146,6 +2181,10 @@ void AnmManager::ApplySurfaceToColorBuffer(SDL_Surface *src, const SDL_Rect &src
 {
     ZunViewport originalViewport;
     ZunViewport fullscreenViewport;
+    SDL_Surface *uploadSurface = src;
+    SDL_Surface *scaledSurface = NULL;
+    u16 *pspTextureData = NULL;
+    i32 surfaceIdx = -1;
 
     if (srcRect.w <= 0 || srcRect.h <= 0)
     {
@@ -2165,18 +2204,74 @@ void AnmManager::ApplySurfaceToColorBuffer(SDL_Surface *src, const SDL_Rect &src
 
     this->SetProjectionMode(PROJECTION_MODE_ORTHOGRAPHIC);
 
-    CreateTextureObject();
+    for (i32 idx = 0; idx < ARRAY_SIZE_SIGNED(this->surfaces); ++idx)
+    {
+        if (this->surfaces[idx] == src)
+        {
+            surfaceIdx = idx;
+            break;
+        }
+    }
 
-    u32 textureWidth = BitCeil((u32)src->w);
-    u32 textureHeight = BitCeil((u32)src->h);
+    const bool textureCached = surfaceIdx >= 0 && this->surfaceTextureHandles[surfaceIdx] != 0;
+    u32 uploadWidth = src->w;
+    u32 uploadHeight = src->h;
 
-    g_GfxBackend->SetTextureImage(textureWidth, textureHeight, PIXEL_RGB, PIXEL_UNSIGNED_BYTE, NULL);
+#ifdef __PSP__
+    // The GE supports textures up to 512x512, while EoSD's menu surfaces are
+    // 640x480. The PSP viewport is an exact half-scale 320x240, so upload that
+    // native LCD-sized image once rather than creating an invalid 1024-wide
+    // texture and re-uploading nearly a megabyte every frame.
+    uploadWidth = (src->w + 1) / 2;
+    uploadHeight = (src->h + 1) / 2;
+    if (!textureCached)
+    {
+        scaledSurface = SDL_CreateRGBSurfaceWithFormat(0, uploadWidth, uploadHeight, 16, SDL_PIXELFORMAT_RGB565);
+        if (scaledSurface == NULL || SDL_BlitScaled(src, NULL, scaledSurface, NULL) < 0)
+        {
+            SDL_FreeSurface(scaledSurface);
+            originalViewport.Set();
+            return;
+        }
+        uploadSurface = scaledSurface;
+    }
+#endif
 
-    u8 *surfaceData = ExtractSurfacePixels(src, 3);
+    u32 textureWidth = BitCeil(uploadWidth);
+    u32 textureHeight = BitCeil(uploadHeight);
 
-    g_GfxBackend->SetTextureSubImage(0, 0, src->w, src->h, surfaceData);
-
-    delete[] surfaceData;
+    if (textureCached)
+    {
+        this->SetCurrentTexture(this->surfaceTextureHandles[surfaceIdx]);
+    }
+    else
+    {
+        CreateTextureObject();
+        if (surfaceIdx >= 0)
+        {
+            this->surfaceTextureHandles[surfaceIdx] = this->currentTextureHandle;
+        }
+#ifdef __PSP__
+        // PSPGL's RGB8 sub-image path misinterprets 24-bit row data. Upload a
+        // complete native RGB565 texture instead, including power-of-two row
+        // padding required by the GE.
+        pspTextureData = new u16[textureWidth * textureHeight]();
+        SDL_LockSurface(uploadSurface);
+        for (u32 y = 0; y < uploadHeight; ++y)
+        {
+            std::memcpy(pspTextureData + y * textureWidth,
+                        (u8 *)uploadSurface->pixels + y * uploadSurface->pitch, uploadWidth * sizeof(u16));
+        }
+        SDL_UnlockSurface(uploadSurface);
+        g_GfxBackend->SetTextureImage(textureWidth, textureHeight, PIXEL_RGB, PIXEL_UNSIGNED_SHORT_5_6_5,
+                                      pspTextureData);
+#else
+        g_GfxBackend->SetTextureImage(textureWidth, textureHeight, PIXEL_RGB, PIXEL_UNSIGNED_BYTE, NULL);
+        SDL_LockSurface(uploadSurface);
+        g_GfxBackend->SetTextureSubImage(0, 0, uploadSurface->w, uploadSurface->h, uploadSurface->pixels);
+        SDL_UnlockSurface(uploadSurface);
+#endif
+    }
 
     VertexTex1DiffuseXyz verts[4];
 
@@ -2185,10 +2280,17 @@ void AnmManager::ApplySurfaceToColorBuffer(SDL_Surface *src, const SDL_Rect &src
     verts[2].position = ZunVec3(dstRect.x, dstRect.y + dstRect.h, 0.0f);
     verts[3].position = ZunVec3(dstRect.x + dstRect.w, dstRect.y + dstRect.h, 0.0f);
 
-    verts[0].textureUV = ZunVec2(0.0f, 0.0f);
-    verts[1].textureUV = ZunVec2(((f32)src->w) / textureWidth, 0.0f);
-    verts[2].textureUV = ZunVec2(0.0f, ((f32)src->h) / textureHeight);
-    verts[3].textureUV = ZunVec2(((f32)src->w) / textureWidth, ((f32)src->h) / textureHeight);
+    const f32 uploadScaleX = ((f32)uploadWidth) / src->w;
+    const f32 uploadScaleY = ((f32)uploadHeight) / src->h;
+    const f32 uvLeft = srcRect.x * uploadScaleX / textureWidth;
+    const f32 uvTop = srcRect.y * uploadScaleY / textureHeight;
+    const f32 uvRight = (srcRect.x + srcRect.w) * uploadScaleX / textureWidth;
+    const f32 uvBottom = (srcRect.y + srcRect.h) * uploadScaleY / textureHeight;
+
+    verts[0].textureUV = ZunVec2(uvLeft, uvTop);
+    verts[1].textureUV = ZunVec2(uvRight, uvTop);
+    verts[2].textureUV = ZunVec2(uvLeft, uvBottom);
+    verts[3].textureUV = ZunVec2(uvRight, uvBottom);
 
     this->SetVertexAttributes(VERTEX_ATTR_TEX_COORD);
 
@@ -2206,7 +2308,13 @@ void AnmManager::ApplySurfaceToColorBuffer(SDL_Surface *src, const SDL_Rect &src
     this->SetColorOp(COMPONENT_ALPHA, COLOR_OP_MODULATE);
     this->SetColorOp(COMPONENT_RGB, COLOR_OP_MODULATE);
 
-    g_GfxBackend->DeleteTexture(this->currentTextureHandle);
+    SDL_FreeSurface(scaledSurface);
+    delete[] pspTextureData;
+
+    if (surfaceIdx < 0)
+    {
+        g_GfxBackend->DeleteTexture(this->currentTextureHandle);
+    }
 
     this->SetCurrentSprite(NULL);
     this->SetCurrentTexture(0);
