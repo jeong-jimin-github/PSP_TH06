@@ -217,7 +217,18 @@ i32 Pbg3Archive::Load(const char *path)
     const size_t stemLength = extension != NULL ? (size_t)(extension - basename) : std::strlen(basename);
     std::snprintf(this->sidecarDirectory, sizeof(this->sidecarDirectory), "data/%.*s", (int)stemLength, basename);
 
-    return this->ParseHeader();
+    const i32 parsed = this->ParseHeader();
+#ifdef __PSP__
+    // PSP reads entry payloads from extracted sidecars, so the DAT stream is
+    // no longer needed after its small filename table has been parsed. Close
+    // it before title/game transitions to reduce open handles and I/O state.
+    if (parsed && this->parser != NULL)
+    {
+        delete this->parser;
+        this->parser = NULL;
+    }
+#endif
+    return parsed;
 }
 
 u8 *Pbg3Archive::ReadExtractedEntry(u32 entryIdx)

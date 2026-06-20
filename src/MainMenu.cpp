@@ -696,7 +696,15 @@ ChainCallbackResult MainMenu::OnUpdate(MainMenu *menu)
                     g_GameManager.livesRemaining = 2;
                     g_GameManager.bombsRemaining = 3;
                 }
-                g_Supervisor.curState = 2;
+#ifdef __PSP__
+                // Present one resource-free loading frame before constructing
+                // the stage. This lets PSPGL finish deleting the selection
+                // textures before allocating the gameplay texture set.
+                menu->gameState = STATE_GAME_START;
+                menu->stateTimer = 0;
+#else
+                g_Supervisor.curState = SUPERVISOR_STATE_GAMEMANAGER;
+#endif
                 g_SoundPlayer.PlaySoundByIdx(SOUND_SELECT);
                 g_GameManager.isInReplay = 0;
                 local_48 = 0.0f;
@@ -736,7 +744,11 @@ ChainCallbackResult MainMenu::OnUpdate(MainMenu *menu)
                 utils::DebugPrint("Reflesh Rate = %f\n", 60.0f / refreshRate);
                 g_Supervisor.framerateMultiplier = refreshRate;
                 g_Supervisor.StopAudio();
+#ifdef __PSP__
+                return CHAIN_CALLBACK_RESULT_CONTINUE;
+#else
                 return CHAIN_CALLBACK_RESULT_CONTINUE_AND_REMOVE_JOB;
+#endif
             }
             menu->gameState = STATE_PRACTICE_LVL_SELECT;
             menu->stateTimer = 0;
@@ -855,6 +867,11 @@ ChainCallbackResult MainMenu::OnUpdate(MainMenu *menu)
             return CHAIN_CALLBACK_RESULT_CONTINUE_AND_REMOVE_JOB;
         }
         break;
+#ifdef __PSP__
+    case STATE_GAME_START:
+        g_Supervisor.curState = SUPERVISOR_STATE_GAMEMANAGER;
+        return CHAIN_CALLBACK_RESULT_CONTINUE_AND_REMOVE_JOB;
+#endif
     }
     menu->stateTimer = menu->stateTimer + 1;
     for (i = 0; i < ARRAY_SIZE_SIGNED(menu->vm); i++)
@@ -1978,6 +1995,17 @@ ChainCallbackResult MainMenu::OnDraw(MainMenu *menu)
     {
         return CHAIN_CALLBACK_RESULT_CONTINUE;
     }
+#ifdef __PSP__
+    if (menu->gameState == STATE_GAME_START)
+    {
+        g_AnmManager->FlushVertexBuffer();
+        g_GfxBackend->SetClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+        g_GfxBackend->Clear(CLEAR_COLOR_BUFFER | CLEAR_DEPTH_BUFFER);
+        ZunVec3 loadingTextPos(264.0f, 232.0f, 0.0f);
+        g_AsciiManager.AddString(&loadingTextPos, "Now Loading...");
+        return CHAIN_CALLBACK_RESULT_CONTINUE;
+    }
+#endif
     mgr = g_AnmManager;
     mgr->currentTextureHandle = 0;
     g_AnmManager->CopySurfaceToBackBuffer(0, 0, 0, 0, 0);

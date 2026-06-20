@@ -29,6 +29,9 @@ enum GameState
     STATE_REPLAY_SELECT,
     STATE_MUSIC_ROOM,
     STATE_PRACTICE_LVL_SELECT,
+#ifdef __PSP__
+    STATE_GAME_START,
+#endif
 };
 
 enum CursorMovement

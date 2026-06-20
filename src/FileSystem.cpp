@@ -114,7 +114,11 @@ u8 *FileSystem::OpenPath(const char *filepath, int isExternalResource)
     if (entryIdx >= 0)
     {
         utils::DebugPrint2("%s Decode ... \n", entryname);
-#ifdef TH06_FORCE_SIDECAR_ASSETS
+#if defined(__PSP__) || defined(TH06_FORCE_SIDECAR_ASSETS)
+        // PSP packages always contain pre-extracted sidecar data. Reading it
+        // directly avoids the compressed input + decompressed output memory
+        // peak and lengthy bit-by-bit PBG3 decode during stage transitions on
+        // a 32 MiB PSP-1000.
         data = NULL;
 #else
         data = g_Pbg3Archives[pbg3Idx]->ReadDecompressEntry(entryIdx, entryname);

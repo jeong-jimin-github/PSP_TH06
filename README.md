@@ -58,7 +58,7 @@ build/psp-package/PSP/GAME/TH06/
 Copy the whole `TH06` directory to `ms0:/PSP/GAME/TH06/`, or launch its
 `EBOOT.PBP` with PPSSPP. The generated package is about 340 MiB because it
 contains the original DAT files, WAV soundtrack, and extracted sidecar assets
-used as a PSP-compatible archive fallback.
+that are read directly by the PSP build to avoid memory-heavy DAT decoding.
 
 After the first successful build, packaging can be repeated without compiling:
 
@@ -81,7 +81,8 @@ After the first successful build, packaging can be repeated without compiling:
 
 - The CPU and bus clocks are set to 333/166 MHz.
 - Static opaque textures use RGB565; masked sprites retain full alpha where
-  needed. Temporary decoded texture data is released after GPU upload.
+  needed in RGBA4444. Temporary decoded texture data is released after GPU
+  upload.
 - BGM uses streamed PCM WAV data and reusable mixer buffers.
 - MIDI, window mode, and color-depth options are hidden because they are not
   meaningful on PSP. Music can be set to WAV or Off.

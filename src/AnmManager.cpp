@@ -310,7 +310,14 @@ ZunResult AnmManager::LoadTexture(i32 textureIdx, const char *textureName, i32 t
 
     if (preserveFullAlpha)
     {
+#ifdef __PSP__
+        // The alpha-mask reader below now merges complete RGBA pixels before
+        // upload, so RGBA4444 is reliable and halves masked texture memory on
+        // PSP-1000 compared with RGBA8888.
+        textureFormat = TEX_FMT_A4R4G4B4;
+#else
         textureFormat = TEX_FMT_A8R8G8B8;
+#endif
     }
     else if (((g_Supervisor.cfg.opts >> GCOS_FORCE_16BIT_COLOR_MODE) & 1) != 0)
     {
@@ -523,9 +530,8 @@ ZunResult AnmManager::LoadAnm(i32 anmIdx, const char *path, i32 spriteIdxOffset)
     }
 
     const bool isDynamicTexture = *anmName == '@';
-    // PSPGL's packed 4444 path does not preserve EoSD's separately supplied
-    // alpha masks reliably. Keep only masked assets (players, enemies and UI)
-    // in RGBA8888; opaque textures still use RGB565 for PSP-1000 memory use.
+    // Masked assets need an alpha-capable upload format. LoadTexture selects
+    // RGBA4444 on PSP and RGBA8888 elsewhere.
     const bool preserveFullAlpha =
 #ifdef __PSP__
         anm->alphaNameOffset != 0;
