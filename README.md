@@ -83,7 +83,8 @@ After the first successful build, packaging can be repeated without compiling:
 - Static opaque textures use RGB565; masked sprites retain full alpha where
   needed in RGBA4444. Temporary decoded texture data is released after GPU
   upload.
-- BGM uses streamed PCM WAV data and reusable mixer buffers.
+- BGM uses streamed PCM WAV data and reusable mixer buffers. On PSP, audio is
+  queued from the frame loop to avoid real-hardware SDL/thread deadlocks.
 - MIDI, window mode, and color-depth options are hidden because they are not
   meaningful on PSP. Music can be set to WAV or Off.
 - Configuration, score data, saves, and replays are written beside the EBOOT.

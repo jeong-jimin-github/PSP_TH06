@@ -93,6 +93,7 @@ RenderResult GameWindow::Render()
         g_Supervisor.viewport.Set();
         res = g_Chain.RunCalcChain();
         g_SoundPlayer.PlaySounds();
+        g_SoundPlayer.PumpAudio();
 
         if (res == 0)
         {

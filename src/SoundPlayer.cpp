@@ -75,7 +75,14 @@ ZunResult SoundPlayer::InitializeDSound()
         goto fail;
     }
 
+#ifdef __PSP__
+    // SDL's queued-audio backend on real PSP hardware can deadlock when file
+    // I/O, queue submission and the mixer mutex are driven from a secondary
+    // C++ thread. Feed a small queue from the main frame loop instead.
+    SDL_PauseAudioDevice(this->audioDev, 0);
+#else
     this->backgroundMusicThreadHandle = std::thread(&SoundPlayer::BackgroundMusicPlayerThread, this);
+#endif
 
     g_GameErrorContext.Log(TH_DBG_SOUNDPLAYER_INIT_SUCCESS);
     return ZUN_SUCCESS;
@@ -87,9 +94,12 @@ fail:
 
 ZunResult SoundPlayer::Release(void)
 {
-    this->terminateFlag = true;
-    this->backgroundMusicThreadHandle.join();
-    this->terminateFlag = false;
+    if (this->backgroundMusicThreadHandle.joinable())
+    {
+        this->terminateFlag = true;
+        this->backgroundMusicThreadHandle.join();
+        this->terminateFlag = false;
+    }
 
     StopBGM();
 
@@ -628,9 +638,32 @@ void SoundPlayer::MixAudio(u32 samples)
     SDL_QueueAudio(this->audioDev, this->finalMixBuffer.data(), samples * sizeof(i16));
 }
 
+void SoundPlayer::PumpAudio()
+{
+#ifdef __PSP__
+    if (this->audioDev == 0)
+    {
+        return;
+    }
+
+    // 2048 interleaved samples are roughly 23 ms of stereo audio. Keep about
+    // three blocks queued so Memory Stick jitter does not starve playback,
+    // while bounding all work performed by a single rendered frame.
+    constexpr u32 mixSamples = 2048;
+    constexpr u32 targetQueuedBytes = mixSamples * sizeof(i16) * 3;
+    u32 queuedBytes = SDL_GetQueuedAudioSize(this->audioDev);
+
+    for (i32 blocks = 0; queuedBytes < targetQueuedBytes && blocks < 3; blocks++)
+    {
+        this->MixAudio(mixSamples);
+        queuedBytes += mixSamples * sizeof(i16);
+    }
+#endif
+}
+
 // EoSD originally just used this function to manage the streaming of the music WAV file.
-//   We also use it to mix and queue audio, since we have to do that manually and doing it
-//   in a thread keeps sound running continuously, even if the main thread runs into lag
+//   We also use it to mix and queue audio. Desktop builds keep this worker so
+//   sound runs continuously when the main thread lags; PSP uses PumpAudio.
 void SoundPlayer::BackgroundMusicPlayerThread()
 {
     SDL_PauseAudioDevice(this->audioDev, 0);
