@@ -98,12 +98,26 @@ if(PSP)
         -Wno-unused-parameter
         -Wno-missing-field-initializers
     )
+    # Keep the whole executable compact for PSP-1000 RAM, while optimizing the
+    # frame-critical simulation/render files more aggressively.
+    set_source_files_properties(
+        src/AnmManager.cpp
+        src/BulletManager.cpp
+        src/EnemyManager.cpp
+        src/EffectManager.cpp
+        src/Player.cpp
+        src/SoundPlayer.cpp
+        src/Stage.cpp
+        src/EclManager.cpp
+        PROPERTIES COMPILE_OPTIONS "-O2;-fno-math-errno"
+    )
     target_link_options(th06_psp PRIVATE
         -Wl,--gc-sections
         -Wl,-T,${CMAKE_SOURCE_DIR}/cmake/psp-gc-sections.ld
         -Wl,-Map,${CMAKE_BINARY_DIR}/th06_psp.map
     )
     target_link_libraries(th06_psp PRIVATE
+        pspmath
         ${SDL2_IMAGE_LIBRARIES}
         ${SDL2_TTF_LIBRARIES}
         ${SDL2_LIBRARIES}

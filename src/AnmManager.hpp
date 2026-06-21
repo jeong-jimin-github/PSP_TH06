@@ -83,6 +83,15 @@ struct VertexTex1DiffuseXyzrhw
     ZunVec2 textureUV;
 };
 
+// PSPGL can consume a color array directly. Keeping each sprite's modulation
+// color in the batch avoids flushing whenever bullets/effects use different
+// alpha values. Desktop keeps the original compact vertex layout.
+#ifdef __PSP__
+using AnmBatchVertex = VertexTex1DiffuseXyzrhw;
+#else
+using AnmBatchVertex = VertexTex1Xyzrhw;
+#endif
+
 // Structure of a vertex with SetVertexShade FVF set to D3DFVF_TEX1 | D3DFVF_DIFFUSE | D3DFVF_XYZ
 struct VertexTex1DiffuseXyz
 {
@@ -170,22 +179,24 @@ struct AnmManager
     void ClearVertexBuffer();
 
     u32 spritesToDraw;
-    VertexTex1Xyzrhw *vertexBufferStartPtr;
-    VertexTex1Xyzrhw *vertexBufferEndPtr;
+    AnmBatchVertex *vertexBufferStartPtr;
+    AnmBatchVertex *vertexBufferEndPtr;
 #ifdef __PSP__
     // The desktop-sized buffer held 24,576 sprites and consumed 2.25 MiB of
     // the PSP heap even though TH06 never needs that many in a single batch.
     // AddSpriteToDrawBuffer flushes automatically when this smaller buffer is
     // full, so dense patterns remain safe instead of overrunning it.
-    static constexpr u32 VERTEX_BUFFER_CAPACITY = 0x1800;
+    // 896 sprites per batch covers TH06's bullet cap while keeping the colored
+    // PSP batch at roughly the same RAM cost as the old colorless buffer.
+    static constexpr u32 VERTEX_BUFFER_CAPACITY = 0x1500;
 #else
     static constexpr u32 VERTEX_BUFFER_CAPACITY = 0x18000;
 #endif
-    VertexTex1Xyzrhw vertexBuffer[VERTEX_BUFFER_CAPACITY];
+    AnmBatchVertex vertexBuffer[VERTEX_BUFFER_CAPACITY];
 
     u32 renderStateChangesThisFrame;
     u32 flushesThisFrame;
-    ZunResult AddSpriteToDrawBuffer(VertexTex1Xyzrhw *vertices);
+    ZunResult AddSpriteToDrawBuffer(const VertexTex1Xyzrhw *vertices, ZunColor color);
 
     ZunResult CreateEmptyTexture(i32 textureIdx, u32 width, u32 height, i32 textureFormat);
     ZunResult LoadTexture(i32 textureIdx, const char *textureName, i32 textureFormat, ZunColor colorKey,

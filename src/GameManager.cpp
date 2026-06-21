@@ -161,17 +161,11 @@ ChainCallbackResult GameManager::OnUpdate(GameManager *gameManager)
     g_Supervisor.viewport.minZ = 0.5;
     g_Supervisor.viewport.maxZ = 1.0;
 
-    PspDiagnostics::TraceRuntime("gm_camera_before");
     SetupCamera(0);
-    PspDiagnostics::TraceRuntime("gm_camera_after");
 
-    PspDiagnostics::TraceRuntime("gm_viewport_before");
     g_Supervisor.viewport.Set();
-    PspDiagnostics::TraceRuntime("gm_viewport_after");
-    PspDiagnostics::TraceRuntime("gm_depth_clear_before");
     g_GfxBackend->SetClearDepth(1.0f);
     g_GfxBackend->Clear(CLEAR_DEPTH_BUFFER);
-    PspDiagnostics::TraceRuntime("gm_depth_clear_after");
 
     //    g_Supervisor.d3dDevice->SetViewport(&g_Supervisor.viewport);
     //    g_Supervisor.d3dDevice->Clear(0, NULL, D3DCLEAR_ZBUFFER, g_Stage.skyFog.color, 1.0, 0);

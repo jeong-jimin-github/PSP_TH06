@@ -1,7 +1,6 @@
 #include "GameWindow.hpp"
 #include "AnmManager.hpp"
 #include "GameErrorContext.hpp"
-#include "PspDiagnostics.hpp"
 #include "ScreenEffect.hpp"
 #include "SoundPlayer.hpp"
 #include "Stage.hpp"
@@ -93,12 +92,8 @@ RenderResult GameWindow::Render()
         g_AnmManager->SetProjectionMode(PROJECTION_MODE_PERSPECTIVE);
         g_Supervisor.viewport.Set();
         res = g_Chain.RunCalcChain();
-        PspDiagnostics::TraceRuntime("play_sounds_before");
         g_SoundPlayer.PlaySounds();
-        PspDiagnostics::TraceRuntime("play_sounds_after");
-        PspDiagnostics::TraceRuntime("audio_pump_before");
         g_SoundPlayer.PumpAudio();
-        PspDiagnostics::TraceRuntime("audio_pump_after");
 
         if (res == 0)
         {
@@ -202,9 +197,7 @@ void GameWindow::Present()
         g_Supervisor.unk198--;
     }
 
-    PspDiagnostics::TraceRuntime("swap_before");
     g_GfxBackend->SwapBuffers();
-    PspDiagnostics::TraceRuntime("swap_after");
 
 #ifdef TH06_AUTOTEST_FRAMES
     ++g_AutotestPresentedFrames;

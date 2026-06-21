@@ -748,7 +748,9 @@ void AnmManager::SetRenderStateForVm(const AnmVm *vm)
 
     if (((g_Supervisor.cfg.opts >> GCOS_DONT_USE_VERTEX_BUF) & 1) == 0)
     {
+#ifndef __PSP__
         this->SetTextureFactor(vm->color);
+#endif
     }
     else
     {
@@ -929,7 +931,11 @@ ZunResult AnmManager::DrawOrthographic(const AnmVm *vm, bool roundToPixel)
 
     if (((g_Supervisor.cfg.opts >> GCOS_DONT_USE_VERTEX_BUF) & 1) == 0)
     {
+#ifdef __PSP__
+        this->SetVertexAttributes(VERTEX_ATTR_TEX_COORD | VERTEX_ATTR_DIFFUSE);
+#else
         this->SetVertexAttributes(VERTEX_ATTR_TEX_COORD);
+#endif
     }
     else
     {
@@ -948,7 +954,7 @@ ZunResult AnmManager::DrawOrthographic(const AnmVm *vm, bool roundToPixel)
 
     if (((g_Supervisor.cfg.opts >> GCOS_DONT_USE_VERTEX_BUF) & 1) == 0)
     {
-        this->AddSpriteToDrawBuffer(g_PrimitivesToDrawVertexBuf);
+        this->AddSpriteToDrawBuffer(g_PrimitivesToDrawVertexBuf, vm->color);
         /*this->SetAttributePointer(VERTEX_ARRAY_POSITION, sizeof(*g_PrimitivesToDrawVertexBuf),
                                   &g_PrimitivesToDrawVertexBuf[0].position);
         this->SetAttributePointer(VERTEX_ARRAY_TEX_COORD, sizeof(*g_PrimitivesToDrawVertexBuf),
@@ -1009,10 +1015,17 @@ void AnmManager::FlushVertexBuffer()
     if (spritesToDraw == 0)
         return;
 
+#ifdef __PSP__
+    this->SetVertexAttributes(VERTEX_ATTR_TEX_COORD | VERTEX_ATTR_DIFFUSE);
+#else
     this->SetVertexAttributes(VERTEX_ATTR_TEX_COORD);
+#endif
 
-    this->SetAttributePointer(VERTEX_ARRAY_POSITION, sizeof(VertexTex1Xyzrhw), &vertexBufferStartPtr->position);
-    this->SetAttributePointer(VERTEX_ARRAY_TEX_COORD, sizeof(VertexTex1Xyzrhw), &vertexBufferStartPtr->textureUV);
+    this->SetAttributePointer(VERTEX_ARRAY_POSITION, sizeof(AnmBatchVertex), &vertexBufferStartPtr->position);
+    this->SetAttributePointer(VERTEX_ARRAY_TEX_COORD, sizeof(AnmBatchVertex), &vertexBufferStartPtr->textureUV);
+#ifdef __PSP__
+    this->SetAttributePointer(VERTEX_ARRAY_DIFFUSE, sizeof(AnmBatchVertex), &vertexBufferStartPtr->diffuse);
+#endif
     this->UpdateDirtyStates();
 
     g_GfxBackend->Draw(PRIM_TRIANGLES, 0, spritesToDraw * 6);
@@ -1025,19 +1038,30 @@ void AnmManager::FlushVertexBuffer()
  * (2 triangles) for rendering.
  */
 
-ZunResult AnmManager::AddSpriteToDrawBuffer(VertexTex1Xyzrhw *vertices)
+ZunResult AnmManager::AddSpriteToDrawBuffer(const VertexTex1Xyzrhw *vertices, ZunColor color)
 {
     if (this->vertexBufferEndPtr + 6 > this->vertexBuffer + VERTEX_BUFFER_CAPACITY)
     {
         this->FlushVertexBuffer();
     }
 
+#ifdef __PSP__
+    static constexpr u8 indices[6] = {0, 1, 2, 1, 2, 3};
+    const ColorData diffuse(color);
+    for (u32 i = 0; i < 6; i++)
+    {
+        this->vertexBufferEndPtr[i].position = vertices[indices[i]].position;
+        this->vertexBufferEndPtr[i].textureUV = vertices[indices[i]].textureUV;
+        this->vertexBufferEndPtr[i].diffuse = diffuse;
+    }
+#else
     this->vertexBufferEndPtr[0] = vertices[0];
     this->vertexBufferEndPtr[1] = vertices[1];
     this->vertexBufferEndPtr[2] = vertices[2];
     this->vertexBufferEndPtr[3] = vertices[1];
     this->vertexBufferEndPtr[4] = vertices[2];
     this->vertexBufferEndPtr[5] = vertices[3];
+#endif
 
     this->vertexBufferEndPtr += 6;
     this->spritesToDraw++;
@@ -1317,7 +1341,11 @@ ZunResult AnmManager::Draw3(const AnmVm *vm)
 
     if (((g_Supervisor.cfg.opts >> GCOS_DONT_USE_VERTEX_BUF) & 1) == 0)
     {
+#ifdef __PSP__
+        this->SetVertexAttributes(VERTEX_ATTR_TEX_COORD | VERTEX_ATTR_DIFFUSE);
+#else
         this->SetVertexAttributes(VERTEX_ATTR_TEX_COORD);
+#endif
     }
     else
     {
@@ -1331,7 +1359,7 @@ ZunResult AnmManager::Draw3(const AnmVm *vm)
     if ((g_Supervisor.cfg.opts >> GCOS_DONT_USE_VERTEX_BUF & 1) == 0)
     {
 
-        this->AddSpriteToDrawBuffer(g_PrimitivesToDrawVertexBuf);
+        this->AddSpriteToDrawBuffer(g_PrimitivesToDrawVertexBuf, vm->color);
     }
     else
     {
@@ -1436,7 +1464,11 @@ ZunResult AnmManager::Draw2(const AnmVm *vm)
 
         if (((g_Supervisor.cfg.opts >> GCOS_DONT_USE_VERTEX_BUF) & 1) == 0)
         {
+#ifdef __PSP__
+            this->SetVertexAttributes(VERTEX_ATTR_TEX_COORD | VERTEX_ATTR_DIFFUSE);
+#else
             this->SetVertexAttributes(VERTEX_ATTR_TEX_COORD);
+#endif
         }
         else
         {
@@ -1448,7 +1480,7 @@ ZunResult AnmManager::Draw2(const AnmVm *vm)
 
     if ((g_Supervisor.cfg.opts >> GCOS_DONT_USE_VERTEX_BUF & 1) == 0)
     {
-        this->AddSpriteToDrawBuffer(g_PrimitivesToDrawVertexBuf);
+        this->AddSpriteToDrawBuffer(g_PrimitivesToDrawVertexBuf, vm->color);
     }
     else
     {

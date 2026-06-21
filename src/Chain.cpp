@@ -1,5 +1,4 @@
 #include "Chain.hpp"
-#include "PspDiagnostics.hpp"
 #include "utils.hpp"
 
 #include <new>
@@ -154,9 +153,7 @@ restart_from_first_job:
         {
             ChainCallbackResult callbackResult;
         execute_again:
-            PspDiagnostics::TraceRuntime("calc_before", current->priority);
             callbackResult = current->callback(current->arg);
-            PspDiagnostics::TraceRuntime("calc_after", current->priority);
             switch (callbackResult)
             {
             case CHAIN_CALLBACK_RESULT_CONTINUE_AND_REMOVE_JOB:
@@ -210,9 +207,7 @@ int Chain::RunDrawChain(void)
         {
             ChainCallbackResult callbackResult;
         execute_again:
-            PspDiagnostics::TraceRuntime("draw_before", current->priority);
             callbackResult = current->callback(current->arg);
-            PspDiagnostics::TraceRuntime("draw_after", current->priority);
             switch (callbackResult)
             {
             case CHAIN_CALLBACK_RESULT_CONTINUE_AND_REMOVE_JOB:

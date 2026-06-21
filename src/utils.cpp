@@ -49,8 +49,7 @@ void Rotate(ZunVec3 *outVector, const ZunVec3 *point, f32 angle)
     f32 sinOut;
     f32 cosOut;
 
-    sinOut = ZUN_SINF(angle);
-    cosOut = ZUN_COSF(angle);
+    fsincos_wrapper(&sinOut, &cosOut, angle);
     outVector->x = cosOut * point->x + sinOut * point->y;
     outVector->y = cosOut * point->y - sinOut * point->x;
 }

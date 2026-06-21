@@ -5,6 +5,10 @@
 #include <cmath>
 #include <cstring>
 
+#ifdef __PSP__
+#include <pspmath.h>
+#endif
+
 #ifndef __has_builtin
 #define __has_builtin(name) 0
 #endif
@@ -88,15 +92,24 @@ inline u16 RotateLeft16(u16 n, u8 s)
 //   These were mostly added to C++ with C++17, but GNU bikeshedded so hard, they didn't add
 //   them to their headers until 2023. To allow compilation where the older headers are
 //   still used, these macros force the overloaded float version of the base math function.
+#ifdef __PSP__
+#define ZUN_SINF(angle) (vfpu_sinf((f32)(angle)))
+#define ZUN_COSF(angle) (vfpu_cosf((f32)(angle)))
+#define ZUN_TANF(angle) (vfpu_tanf((f32)(angle)))
+#define ZUN_FMODF(x, y) (vfpu_fmodf((f32)(x), (f32)(y)))
+#define ZUN_ATAN2F(x, y) (vfpu_atan2f((f32)(x), (f32)(y)))
+#define ZUN_POWF(x, y) (vfpu_powf((f32)(x), (f32)(y)))
+#else
 #define ZUN_SINF(angle) (std::sin((f32)(angle)))
 #define ZUN_COSF(angle) (std::cos((f32)(angle)))
 #define ZUN_TANF(angle) (std::tan((f32)(angle)))
-#define ZUN_SQRTF(n) (std::sqrt((f32)(n)))
-#define ZUN_FABSF(n) (std::fabs((f32)(n)))
 #define ZUN_FMODF(x, y) (std::fmod((f32)(x), (f32)(y)))
 #define ZUN_ATAN2F(x, y) (std::atan2((f32)(x), (f32)(y)))
 #define ZUN_POWF(x, y) (std::pow((f32)(x), (f32)(y)))
-#define ZUN_RINTF(n) (std::rintf((f32)(x)))
+#endif
+#define ZUN_SQRTF(n) (std::sqrt((f32)(n)))
+#define ZUN_FABSF(n) (std::fabs((f32)(n)))
+#define ZUN_RINTF(n) (std::rintf((f32)(n)))
 
 // sizeof checks kept in because technically, the standard does allow compilers to add more padding than is required
 
@@ -476,14 +489,21 @@ struct ZunViewport
 
 inline void fsincos_wrapper(f32 *out_sine, f32 *out_cosine, f32 angle)
 {
+#ifdef __PSP__
+    vfpu_sincos(angle, out_sine, out_cosine);
+#else
     *out_sine = std::sin(angle);
     *out_cosine = std::cos(angle);
+#endif
 }
 
 inline void sincosmul(ZunVec3 *out_vel, f32 input, f32 multiplier)
 {
-    out_vel->x = std::cos(input) * multiplier;
-    out_vel->y = std::sin(input) * multiplier;
+    f32 sine;
+    f32 cosine;
+    fsincos_wrapper(&sine, &cosine, input);
+    out_vel->x = cosine * multiplier;
+    out_vel->y = sine * multiplier;
 }
 
 inline f32 invertf(f32 x)

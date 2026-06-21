@@ -587,12 +587,28 @@ void SoundPlayer::MixAudio(u32 samples)
                 break;
             }
 
-            for (u32 j = 0; j < samplesToMix; j++)
+            if (this->backgroundMusic.fadeoutLen == 0)
             {
-                const u32 dst = (samplesMixed + j) * 2;
-                const u32 src = j * 2;
-                this->accumulationBuffer[dst] += ((i16)SDL_SwapLE16((u16)bgmSamples[src])) * fadeoutMult;
-                this->accumulationBuffer[dst + 1] += ((i16)SDL_SwapLE16((u16)bgmSamples[src + 1])) * fadeoutMult;
+                // Normal playback is by far the hot path. Avoid two float
+                // conversions and multiplies for every stereo frame.
+                for (u32 j = 0; j < samplesToMix; j++)
+                {
+                    const u32 dst = (samplesMixed + j) * 2;
+                    const u32 src = j * 2;
+                    this->accumulationBuffer[dst] += (i16)SDL_SwapLE16((u16)bgmSamples[src]);
+                    this->accumulationBuffer[dst + 1] += (i16)SDL_SwapLE16((u16)bgmSamples[src + 1]);
+                }
+            }
+            else
+            {
+                for (u32 j = 0; j < samplesToMix; j++)
+                {
+                    const u32 dst = (samplesMixed + j) * 2;
+                    const u32 src = j * 2;
+                    this->accumulationBuffer[dst] += ((i16)SDL_SwapLE16((u16)bgmSamples[src])) * fadeoutMult;
+                    this->accumulationBuffer[dst + 1] +=
+                        ((i16)SDL_SwapLE16((u16)bgmSamples[src + 1])) * fadeoutMult;
+                }
             }
 
             this->backgroundMusic.pos += samplesToMix;
@@ -640,14 +656,30 @@ void SoundPlayer::MixAudio(u32 samples)
 
     const int mixDivisor = std::max(8, (int)playingChannels);
 
+#ifdef __PSP__
+    if (mixDivisor == 8)
+    {
+        for (u32 i = 0; i < samples; i++)
+        {
+            // Arithmetic right shift rounds negatives down; adding the sign
+            // bias preserves C++ division's truncation toward zero.
+            const i32 mixed = this->accumulationBuffer[i];
+            this->finalMixBuffer[i] = (mixed + ((mixed >> 31) & 7)) >> 3;
+        }
+    }
+    else
+    {
+        for (u32 i = 0; i < samples; i++)
+        {
+            this->finalMixBuffer[i] = this->accumulationBuffer[i] / mixDivisor;
+        }
+    }
+#else
     for (u32 i = 0; i < samples; i++)
     {
-        // Integer division like this doesn't get optimized at all by the compiler. If it becomes
-        //   a problem, it could be a good idea to convert to float, or to do the division as
-        //   fixed point multiplication by the inverse of mixDivisor, depending on what's faster
-        //   on any particular platform
         this->finalMixBuffer[i] = this->accumulationBuffer[i] / mixDivisor;
     }
+#endif
 
 #ifdef __PSP__
     SDL_QueueAudio(this->audioDev, this->finalMixBuffer, samples * sizeof(i16));
