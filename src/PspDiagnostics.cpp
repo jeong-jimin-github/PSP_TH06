@@ -8,6 +8,9 @@
 namespace
 {
 bool g_IsTracingStageLoad;
+bool g_IsTracingRuntime;
+unsigned int g_RuntimeTraceCount;
+constexpr unsigned int RUNTIME_TRACE_LIMIT = 96;
 
 void WriteTrace(const char *marker, const char *detail, const char *mode)
 {
@@ -30,6 +33,7 @@ void WriteTrace(const char *marker, const char *detail, const char *mode)
     std::fflush(file);
     std::fclose(file);
 }
+
 } // namespace
 #endif
 
@@ -39,6 +43,8 @@ void ResetLoadTrace()
 {
 #ifdef __PSP__
     g_IsTracingStageLoad = false;
+    g_IsTracingRuntime = false;
+    g_RuntimeTraceCount = 0;
     WriteTrace("boot", nullptr, "w");
 #endif
 }
@@ -64,10 +70,35 @@ void TraceStageLoad(const char *marker, const char *detail)
 #endif
 }
 
+void TraceRuntime(const char *marker, int priority)
+{
+#ifdef __PSP__
+    if (!g_IsTracingRuntime || g_RuntimeTraceCount >= RUNTIME_TRACE_LIMIT)
+    {
+        return;
+    }
+
+    char detail[24];
+    const char *detailPtr = nullptr;
+    if (priority >= 0)
+    {
+        std::snprintf(detail, sizeof(detail), "priority=%d", priority);
+        detailPtr = detail;
+    }
+    WriteTrace(marker, detailPtr, "a");
+    g_RuntimeTraceCount++;
+#else
+    (void)marker;
+    (void)priority;
+#endif
+}
+
 void EndStageLoad()
 {
 #ifdef __PSP__
     WriteTrace("stage_load_complete", nullptr, "a");
+    g_IsTracingRuntime = true;
+    g_RuntimeTraceCount = 0;
 #endif
 }
 } // namespace PspDiagnostics

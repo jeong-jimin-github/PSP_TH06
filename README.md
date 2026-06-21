@@ -96,7 +96,8 @@ After the first successful build, packaging can be repeated without compiling:
 - Configuration, score data, saves, and replays are written beside the EBOOT.
   The generated directory must remain writable.
 - `loadtrace.txt` is recreated beside the EBOOT on each launch and records the
-  last completed stage-loading step for diagnosing real-hardware shutdowns.
+  last completed stage-loading step plus the first frame's callback priority,
+  rendering, swap, and audio checkpoints for real-hardware shutdowns.
 
 ## Development build
 
