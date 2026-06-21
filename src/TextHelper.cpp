@@ -33,7 +33,19 @@ TextHelper::~TextHelper()
 // Extended to initialize all globals for text helper
 ZunResult TextHelper::CreateTextBuffer()
 {
-    TTF_Init();
+    // PSP releases the font cache while a stage is being loaded to keep the
+    // transient allocation peak below the PSP-1000's 32 MiB limit.  Make this
+    // safe to call again once the heavy stage assets have finished loading.
+    if (g_Font != NULL && g_TextBufferSurface != NULL)
+    {
+        return ZUN_SUCCESS;
+    }
+
+    if (!TTF_WasInit() && TTF_Init() != 0)
+    {
+        std::printf("%s\n", TTF_GetError());
+        return ZUN_ERROR;
+    }
 
     // Primary font is MSゴシック, which is nonfree and has to be taken from a Windows install
     // Fallback is Noto Sans Regular (JP) which is redistributable
@@ -48,6 +60,14 @@ ZunResult TextHelper::CreateTextBuffer()
 
     g_TextBufferSurface =
         SDL_CreateRGBSurfaceWithFormat(0, GAME_WINDOW_WIDTH, TEXT_BUFFER_HEIGHT, 32, SDL_PIXELFORMAT_RGBA32);
+
+    if (g_TextBufferSurface == NULL)
+    {
+        std::printf("%s\n", SDL_GetError());
+        TTF_CloseFont(g_Font);
+        g_Font = NULL;
+        return ZUN_ERROR;
+    }
 
     SDL_SetSurfaceBlendMode(g_TextBufferSurface, SDL_BLENDMODE_NONE);
 

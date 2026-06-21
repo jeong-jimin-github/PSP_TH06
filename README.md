@@ -83,6 +83,9 @@ After the first successful build, packaging can be repeated without compiling:
 - Static opaque textures use RGB565; masked sprites retain full alpha where
   needed in RGBA4444. Temporary decoded texture data is released after GPU
   upload.
+- Release builds discard unused code and unwind metadata. The text font cache
+  is temporarily released during synchronous stage setup, avoiding the memory
+  allocation spike that can terminate a PSP-1000 at `Now Loading`.
 - BGM uses streamed PCM WAV data and reusable mixer buffers. On PSP, audio is
   queued from the frame loop to avoid real-hardware SDL/thread deadlocks.
 - MIDI, window mode, and color-depth options are hidden because they are not

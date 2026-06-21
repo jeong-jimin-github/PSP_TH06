@@ -4,10 +4,12 @@
 #include "inttypes.hpp"
 #include <SDL2/SDL_audio.h>
 #include <SDL2/SDL_rwops.h>
+#ifndef __PSP__
 #include <atomic>
 #include <mutex>
 #include <thread>
 #include <vector>
+#endif
 
 enum SoundIdx
 {
@@ -95,20 +97,47 @@ struct SoundPlayer
     ZunResult LoadWav(const char *path);
     ZunResult LoadPos(const char *path);
 
+#ifndef __PSP__
     void BackgroundMusicPlayerThread();
+#endif
     void PumpAudio();
     void MixAudio(u32 samples);
 
+    void LockMixer()
+    {
+#ifndef __PSP__
+        soundBufMutex.lock();
+#endif
+    }
+
+    void UnlockMixer()
+    {
+#ifndef __PSP__
+        soundBufMutex.unlock();
+#endif
+    }
+
     SoundData soundBuffers[128];
+#ifndef __PSP__
     std::mutex soundBufMutex;
+#endif
     SDL_AudioDeviceID audioDev;
+#ifndef __PSP__
     std::thread backgroundMusicThreadHandle;
     std::atomic_bool terminateFlag;
+#endif
     i32 soundBuffersToPlay[3];
     MusicStream backgroundMusic;
+#ifdef __PSP__
+    static constexpr u32 PSP_AUDIO_MIX_SAMPLES = 2048;
+    i16 finalMixBuffer[PSP_AUDIO_MIX_SAMPLES];
+    i32 accumulationBuffer[PSP_AUDIO_MIX_SAMPLES];
+    i16 bgmReadBuffer[PSP_AUDIO_MIX_SAMPLES];
+#else
     std::vector<i16> finalMixBuffer;
     std::vector<i32> accumulationBuffer;
     std::vector<i16> bgmReadBuffer;
+#endif
     bool isLooping;
 };
 

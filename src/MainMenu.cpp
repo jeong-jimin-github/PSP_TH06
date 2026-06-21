@@ -17,6 +17,7 @@
 #include "ScreenEffect.hpp"
 #include "SoundPlayer.hpp"
 #include "Supervisor.hpp"
+#include "TextHelper.hpp"
 #include "ZunColor.hpp"
 #include "i18n.hpp"
 #include "utils.hpp"
@@ -869,6 +870,10 @@ ChainCallbackResult MainMenu::OnUpdate(MainMenu *menu)
         break;
 #ifdef __PSP__
     case STATE_GAME_START:
+        // The loading screen has already been presented for a full frame.
+        // Free the font face and its 640x64 RGBA work surface before the
+        // synchronous stage setup performs its largest burst of allocations.
+        TextHelper::ReleaseTextBuffer();
         g_Supervisor.curState = SUPERVISOR_STATE_GAMEMANAGER;
         return CHAIN_CALLBACK_RESULT_CONTINUE_AND_REMOVE_JOB;
 #endif

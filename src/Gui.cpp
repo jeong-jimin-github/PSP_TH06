@@ -13,6 +13,7 @@
 #include "Player.hpp"
 #include "SoundPlayer.hpp"
 #include "Stage.hpp"
+#include "TextHelper.hpp"
 #include "ZunColor.hpp"
 #include "utils.hpp"
 
@@ -434,6 +435,14 @@ ZunResult Gui::ActualAddedCallback()
     this->impl->bombSpellcardName.fontHeight = 15;
     this->impl->enemySpellcardName.fontWidth = 15;
     this->impl->enemySpellcardName.fontHeight = 15;
+#ifdef __PSP__
+    // MainMenu released this cache before stage loading.  Recreate it only
+    // after every large stage texture and message resource is resident.
+    if (TextHelper::CreateTextBuffer() != ZUN_SUCCESS)
+    {
+        return ZUN_ERROR;
+    }
+#endif
     g_AnmManager->SetAndExecuteScriptIdx(&this->impl->stageNameSprite, ANM_SCRIPT_TEXT_STAGE_NAME);
     g_AnmManager->SetAndExecuteScriptIdx(&this->impl->songNameSprite, ANM_SCRIPT_TEXT_SONG_NAME);
     g_AnmManager->DrawStringFormat2(&this->impl->stageNameSprite, COLOR_RGB(COLOR_LIGHTCYAN), COLOR_RGB(COLOR_BLACK),

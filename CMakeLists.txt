@@ -84,12 +84,23 @@ if(PSP)
         target_compile_definitions(th06_psp PRIVATE TH06_FORCE_SIDECAR_ASSETS=1)
     endif()
     target_compile_options(th06_psp PRIVATE
-        -O2
+        -Os
         -G0
+        -ffunction-sections
+        -fdata-sections
+        -fno-exceptions
+        -fno-rtti
+        -fno-unwind-tables
+        -fno-asynchronous-unwind-tables
         -Wall
         -Wextra
         -Wno-unused-parameter
         -Wno-missing-field-initializers
+    )
+    target_link_options(th06_psp PRIVATE
+        -Wl,--gc-sections
+        -Wl,-T,${CMAKE_SOURCE_DIR}/cmake/psp-gc-sections.ld
+        -Wl,-Map,${CMAKE_BINARY_DIR}/th06_psp.map
     )
     target_link_libraries(th06_psp PRIVATE
         ${SDL2_IMAGE_LIBRARIES}

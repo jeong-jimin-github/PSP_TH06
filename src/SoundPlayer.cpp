@@ -94,12 +94,14 @@ fail:
 
 ZunResult SoundPlayer::Release(void)
 {
+#ifndef __PSP__
     if (this->backgroundMusicThreadHandle.joinable())
     {
         this->terminateFlag = true;
         this->backgroundMusicThreadHandle.join();
         this->terminateFlag = false;
     }
+#endif
 
     StopBGM();
 
@@ -126,10 +128,10 @@ void SoundPlayer::StopBGM()
 {
     if (this->backgroundMusic.srcWav.fileStream != NULL)
     {
-        this->soundBufMutex.lock();
+        this->LockMixer();
         SDL_RWclose(this->backgroundMusic.srcWav.fileStream);
         this->backgroundMusic.srcWav.fileStream = NULL;
-        this->soundBufMutex.unlock();
+        this->UnlockMixer();
 
         utils::DebugPrint2("stop BGM\n");
     }
@@ -348,7 +350,7 @@ ZunResult SoundPlayer::LoadSound(i32 idx, const char *path, f32 volumeMultiplier
     u8 *wavRawSamples;
     u32 wavRawSampleByteCount;
 
-    soundBufMutex.lock();
+    this->LockMixer();
 
     if (this->soundBuffers[idx].samples != NULL)
     {
@@ -406,11 +408,11 @@ ZunResult SoundPlayer::LoadSound(i32 idx, const char *path, f32 volumeMultiplier
     this->soundBuffers[idx].pos = 0;
     this->soundBuffers[idx].isPlaying = false;
 
-    soundBufMutex.unlock();
+    this->UnlockMixer();
     return ZUN_SUCCESS;
 
 fail:
-    soundBufMutex.unlock();
+    this->UnlockMixer();
     return ZUN_ERROR;
 }
 
@@ -455,7 +457,7 @@ void SoundPlayer::PlaySounds()
         return;
     }
 
-    soundBufMutex.lock();
+    this->LockMixer();
 
     for (idx = 0; idx < ARRAY_SIZE_SIGNED(this->soundBuffersToPlay); idx++)
     {
@@ -476,7 +478,7 @@ void SoundPlayer::PlaySounds()
         this->soundBuffers[sndBufIdx].isPlaying = true;
     }
 
-    soundBufMutex.unlock();
+    this->UnlockMixer();
 }
 
 void SoundPlayer::PlaySoundByIdx(SoundIdx idx)
@@ -506,13 +508,22 @@ void SoundPlayer::PlaySoundByIdx(SoundIdx idx)
 
 void SoundPlayer::MixAudio(u32 samples)
 {
+#ifdef __PSP__
+    if (samples > PSP_AUDIO_MIX_SAMPLES)
+    {
+        samples = PSP_AUDIO_MIX_SAMPLES;
+    }
+    std::fill_n(this->finalMixBuffer, samples, 0);
+    std::fill_n(this->accumulationBuffer, samples, 0);
+#else
     this->finalMixBuffer.resize(samples);
     this->accumulationBuffer.resize(samples);
     std::fill(this->finalMixBuffer.begin(), this->finalMixBuffer.end(), 0);
     std::fill(this->accumulationBuffer.begin(), this->accumulationBuffer.end(), 0);
+#endif
     u8 playingChannels = 0;
 
-    this->soundBufMutex.lock();
+    this->LockMixer();
 
     for (int i = 0; i < ARRAY_SIZE_SIGNED(this->soundBuffers); i++)
     {
@@ -562,9 +573,14 @@ void SoundPlayer::MixAudio(u32 samples)
                 std::min((samples / 2) - samplesMixed, this->backgroundMusic.loopEnd - this->backgroundMusic.pos);
 
             const u32 stereoSamplesToRead = samplesToMix * BACKGROUND_MUSIC_WAV_NUM_CHANNELS;
+#ifdef __PSP__
+            i16 *bgmSamples = this->bgmReadBuffer;
+#else
             this->bgmReadBuffer.resize(stereoSamplesToRead);
-            if (SDL_RWread(this->backgroundMusic.srcWav.fileStream, this->bgmReadBuffer.data(), sizeof(i16),
-                           stereoSamplesToRead) != stereoSamplesToRead)
+            i16 *bgmSamples = this->bgmReadBuffer.data();
+#endif
+            if (SDL_RWread(this->backgroundMusic.srcWav.fileStream, bgmSamples, sizeof(i16), stereoSamplesToRead) !=
+                stereoSamplesToRead)
             {
                 SDL_RWclose(this->backgroundMusic.srcWav.fileStream);
                 this->backgroundMusic.srcWav.fileStream = NULL;
@@ -575,10 +591,8 @@ void SoundPlayer::MixAudio(u32 samples)
             {
                 const u32 dst = (samplesMixed + j) * 2;
                 const u32 src = j * 2;
-                this->accumulationBuffer[dst] +=
-                    ((i16)SDL_SwapLE16((u16)this->bgmReadBuffer[src])) * fadeoutMult;
-                this->accumulationBuffer[dst + 1] +=
-                    ((i16)SDL_SwapLE16((u16)this->bgmReadBuffer[src + 1])) * fadeoutMult;
+                this->accumulationBuffer[dst] += ((i16)SDL_SwapLE16((u16)bgmSamples[src])) * fadeoutMult;
+                this->accumulationBuffer[dst + 1] += ((i16)SDL_SwapLE16((u16)bgmSamples[src + 1])) * fadeoutMult;
             }
 
             this->backgroundMusic.pos += samplesToMix;
@@ -616,7 +630,7 @@ void SoundPlayer::MixAudio(u32 samples)
         playingChannels++;
     }
 
-    this->soundBufMutex.unlock();
+    this->UnlockMixer();
 
     // DirectSound supports playing from an arbitrary number of buffers at once, but that's kind of
     //   difficult to get right as it turns out. Instead we use 8 as an assumption of the
@@ -635,7 +649,11 @@ void SoundPlayer::MixAudio(u32 samples)
         this->finalMixBuffer[i] = this->accumulationBuffer[i] / mixDivisor;
     }
 
+#ifdef __PSP__
+    SDL_QueueAudio(this->audioDev, this->finalMixBuffer, samples * sizeof(i16));
+#else
     SDL_QueueAudio(this->audioDev, this->finalMixBuffer.data(), samples * sizeof(i16));
+#endif
 }
 
 void SoundPlayer::PumpAudio()
@@ -649,7 +667,7 @@ void SoundPlayer::PumpAudio()
     // 2048 interleaved samples are roughly 23 ms of stereo audio. Keep about
     // three blocks queued so Memory Stick jitter does not starve playback,
     // while bounding all work performed by a single rendered frame.
-    constexpr u32 mixSamples = 2048;
+    constexpr u32 mixSamples = PSP_AUDIO_MIX_SAMPLES;
     constexpr u32 targetQueuedBytes = mixSamples * sizeof(i16) * 3;
     u32 queuedBytes = SDL_GetQueuedAudioSize(this->audioDev);
 
@@ -664,6 +682,7 @@ void SoundPlayer::PumpAudio()
 // EoSD originally just used this function to manage the streaming of the music WAV file.
 //   We also use it to mix and queue audio. Desktop builds keep this worker so
 //   sound runs continuously when the main thread lags; PSP uses PumpAudio.
+#ifndef __PSP__
 void SoundPlayer::BackgroundMusicPlayerThread()
 {
     SDL_PauseAudioDevice(this->audioDev, 0);
@@ -707,3 +726,4 @@ void SoundPlayer::BackgroundMusicPlayerThread()
         SDL_Delay(5);
     }
 }
+#endif
