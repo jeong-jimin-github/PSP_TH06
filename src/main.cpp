@@ -11,6 +11,7 @@
 #include "FileSystem.hpp"
 #include "GameErrorContext.hpp"
 #include "GameWindow.hpp"
+#include "PspDiagnostics.hpp"
 #include "SoundPlayer.hpp"
 #include "Stage.hpp"
 #include "Supervisor.hpp"
@@ -27,6 +28,7 @@ int main(int argc, char *argv[])
     // TH06's fixed 60 Hz simulation and software-side vertex preparation need
     // the PSP's full user-mode clock, especially on dense bullet patterns.
     scePowerSetClockFrequency(333, 333, 166);
+    PspDiagnostics::ResetLoadTrace();
 #endif
 
     i32 renderResult = 0;

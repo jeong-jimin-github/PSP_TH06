@@ -172,7 +172,16 @@ struct AnmManager
     u32 spritesToDraw;
     VertexTex1Xyzrhw *vertexBufferStartPtr;
     VertexTex1Xyzrhw *vertexBufferEndPtr;
-    VertexTex1Xyzrhw vertexBuffer[0x18000];
+#ifdef __PSP__
+    // The desktop-sized buffer held 24,576 sprites and consumed 2.25 MiB of
+    // the PSP heap even though TH06 never needs that many in a single batch.
+    // AddSpriteToDrawBuffer flushes automatically when this smaller buffer is
+    // full, so dense patterns remain safe instead of overrunning it.
+    static constexpr u32 VERTEX_BUFFER_CAPACITY = 0x1800;
+#else
+    static constexpr u32 VERTEX_BUFFER_CAPACITY = 0x18000;
+#endif
+    VertexTex1Xyzrhw vertexBuffer[VERTEX_BUFFER_CAPACITY];
 
     u32 renderStateChangesThisFrame;
     u32 flushesThisFrame;

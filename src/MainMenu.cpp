@@ -11,6 +11,7 @@
 #include "FileSystem.hpp"
 #include "GameErrorContext.hpp"
 #include "GameManager.hpp"
+#include "PspDiagnostics.hpp"
 #include "ReplayData.hpp"
 #include "ReplayManager.hpp"
 #include "ResultScreen.hpp"
@@ -874,6 +875,7 @@ ChainCallbackResult MainMenu::OnUpdate(MainMenu *menu)
         // Free the font face and its 640x64 RGBA work surface before the
         // synchronous stage setup performs its largest burst of allocations.
         TextHelper::ReleaseTextBuffer();
+        PspDiagnostics::BeginStageLoad();
         g_Supervisor.curState = SUPERVISOR_STATE_GAMEMANAGER;
         return CHAIN_CALLBACK_RESULT_CONTINUE_AND_REMOVE_JOB;
 #endif

@@ -221,6 +221,10 @@ ChainCallbackResult Gui::OnDraw(Gui *gui)
 
 void Gui::ShowBombNamePortrait(u32 sprite, const char *bombName)
 {
+    if (this->EnsureCharacterFacesLoaded() != ZUN_SUCCESS)
+    {
+        return;
+    }
     g_AnmManager->SetAndExecuteScriptIdx(&this->impl->playerSpellcardPortrait, 0x4a1);
     g_AnmManager->SetActiveSprite(&this->impl->playerSpellcardPortrait, sprite);
     g_AnmManager->SetAndExecuteScriptIdx(&this->impl->bombSpellcardName, 0x706);
@@ -232,6 +236,10 @@ void Gui::ShowBombNamePortrait(u32 sprite, const char *bombName)
 
 void Gui::ShowSpellcard(i32 spellcardSprite, const char *spellcardName)
 {
+    if (this->EnsureCharacterFacesLoaded() != ZUN_SUCCESS || this->EnsureStageFacesLoaded() != ZUN_SUCCESS)
+    {
+        return;
+    }
     g_AnmManager->SetAndExecuteScriptIdx(&this->impl->enemySpellcardPortrait, ANM_SCRIPT_FACE_ENEMY_SPELLCARD_PORTRAIT);
     g_AnmManager->SetActiveSprite(&this->impl->enemySpellcardPortrait, ANM_SPRITE_FACE_STAGE_START + spellcardSprite);
     g_AnmManager->SetAndExecuteScriptIdx(&this->impl->enemySpellcardName, ANM_SCRIPT_TEXT_ENEMY_SPELLCARD_NAME);
@@ -239,6 +247,93 @@ void Gui::ShowSpellcard(i32 spellcardSprite, const char *spellcardName)
     this->blueSpellcardBarLength = std::strlen(spellcardName) * 15 / 2.0f + 16.0f;
     g_SoundPlayer.PlaySoundByIdx(SOUND_BOMB);
     return;
+}
+
+ZunResult Gui::EnsureCharacterFacesLoaded() const
+{
+    if (g_AnmManager->anmFiles[ANM_FILE_FACE_CHARA_A] != nullptr &&
+        g_AnmManager->anmFiles[ANM_FILE_FACE_CHARA_B] != nullptr &&
+        g_AnmManager->anmFiles[ANM_FILE_FACE_CHARA_C] != nullptr)
+    {
+        return ZUN_SUCCESS;
+    }
+
+    const char *faceA = g_GameManager.character == CHARA_REIMU ? "data/face00a.anm" : "data/face01a.anm";
+    const char *faceB = g_GameManager.character == CHARA_REIMU ? "data/face00b.anm" : "data/face01b.anm";
+    const char *faceC = g_GameManager.character == CHARA_REIMU ? "data/face00c.anm" : "data/face01c.anm";
+
+    if (g_AnmManager->LoadAnm(ANM_FILE_FACE_CHARA_A, faceA, ANM_OFFSET_FACE_CHARA_A) != ZUN_SUCCESS ||
+        g_AnmManager->LoadAnm(ANM_FILE_FACE_CHARA_B, faceB, ANM_OFFSET_FACE_CHARA_B) != ZUN_SUCCESS ||
+        g_AnmManager->LoadAnm(ANM_FILE_FACE_CHARA_C, faceC, ANM_OFFSET_FACE_CHARA_C) != ZUN_SUCCESS)
+    {
+        return ZUN_ERROR;
+    }
+
+    return ZUN_SUCCESS;
+}
+
+ZunResult Gui::EnsureStageFacesLoaded() const
+{
+    if (g_AnmManager->anmFiles[ANM_FILE_FACE_STAGE_A] != nullptr)
+    {
+        return ZUN_SUCCESS;
+    }
+
+    switch (g_GameManager.currentStage)
+    {
+    case 1:
+        if (g_AnmManager->LoadAnm(ANM_FILE_FACE_STAGE_A, "data/face03a.anm", ANM_OFFSET_FACE_STAGE_A) != ZUN_SUCCESS ||
+            g_AnmManager->LoadAnm(ANM_FILE_FACE_STAGE_B, "data/face03b.anm", ANM_OFFSET_FACE_STAGE_B) != ZUN_SUCCESS)
+        {
+            return ZUN_ERROR;
+        }
+        break;
+    case 2:
+        if (g_AnmManager->LoadAnm(ANM_FILE_FACE_STAGE_A, "data/face05a.anm", ANM_OFFSET_FACE_STAGE_A) != ZUN_SUCCESS)
+        {
+            return ZUN_ERROR;
+        }
+        break;
+    case 3:
+        if (g_AnmManager->LoadAnm(ANM_FILE_FACE_STAGE_A, "data/face06a.anm", ANM_OFFSET_FACE_STAGE_A) != ZUN_SUCCESS ||
+            g_AnmManager->LoadAnm(ANM_FILE_FACE_STAGE_B, "data/face06b.anm", ANM_OFFSET_FACE_STAGE_B) != ZUN_SUCCESS)
+        {
+            return ZUN_ERROR;
+        }
+        break;
+    case 4:
+        if (g_AnmManager->LoadAnm(ANM_FILE_FACE_STAGE_A, "data/face08a.anm", ANM_OFFSET_FACE_STAGE_A) != ZUN_SUCCESS ||
+            g_AnmManager->LoadAnm(ANM_FILE_FACE_STAGE_B, "data/face08b.anm", ANM_OFFSET_FACE_STAGE_B) != ZUN_SUCCESS)
+        {
+            return ZUN_ERROR;
+        }
+        break;
+    case 5:
+        if (g_AnmManager->LoadAnm(ANM_FILE_FACE_STAGE_A, "data/face09a.anm", ANM_OFFSET_FACE_STAGE_A) != ZUN_SUCCESS ||
+            g_AnmManager->LoadAnm(ANM_FILE_FACE_STAGE_B, "data/face09b.anm", ANM_OFFSET_FACE_STAGE_B) != ZUN_SUCCESS)
+        {
+            return ZUN_ERROR;
+        }
+        break;
+    case 6:
+        if (g_AnmManager->LoadAnm(ANM_FILE_FACE_STAGE_A, "data/face09b.anm", ANM_OFFSET_FACE_STAGE_A) != ZUN_SUCCESS ||
+            g_AnmManager->LoadAnm(ANM_FILE_FACE_STAGE_B, "data/face10a.anm", ANM_OFFSET_FACE_STAGE_B) != ZUN_SUCCESS ||
+            g_AnmManager->LoadAnm(ANM_FILE_FACE_STAGE_C, "data/face10b.anm", ANM_OFFSET_FACE_STAGE_C) != ZUN_SUCCESS)
+        {
+            return ZUN_ERROR;
+        }
+        break;
+    default:
+        if (g_AnmManager->LoadAnm(ANM_FILE_FACE_STAGE_A, "data/face08a.anm", ANM_OFFSET_FACE_STAGE_A) != ZUN_SUCCESS ||
+            g_AnmManager->LoadAnm(ANM_FILE_FACE_STAGE_B, "data/face12a.anm", ANM_OFFSET_FACE_STAGE_B) != ZUN_SUCCESS ||
+            g_AnmManager->LoadAnm(ANM_FILE_FACE_STAGE_C, "data/face12b.anm", ANM_OFFSET_FACE_STAGE_C) != ZUN_SUCCESS)
+        {
+            return ZUN_ERROR;
+        }
+        break;
+    }
+
+    return ZUN_SUCCESS;
 }
 
 ZunResult Gui::ActualAddedCallback()
@@ -257,43 +352,6 @@ ZunResult Gui::ActualAddedCallback()
             return ZUN_ERROR;
         }
         this->impl->loadingScreenSprite.activeSpriteIndex = -1;
-        switch (g_GameManager.character)
-        {
-        case CHARA_REIMU:
-            if (g_AnmManager->LoadAnm(ANM_FILE_FACE_CHARA_A, "data/face00a.anm", ANM_OFFSET_FACE_CHARA_A) !=
-                ZUN_SUCCESS)
-            {
-                return ZUN_ERROR;
-            }
-            if (g_AnmManager->LoadAnm(ANM_FILE_FACE_CHARA_B, "data/face00b.anm", ANM_OFFSET_FACE_CHARA_B) !=
-                ZUN_SUCCESS)
-            {
-                return ZUN_ERROR;
-            }
-            if (g_AnmManager->LoadAnm(ANM_FILE_FACE_CHARA_C, "data/face00c.anm", ANM_OFFSET_FACE_CHARA_C) !=
-                ZUN_SUCCESS)
-            {
-                return ZUN_ERROR;
-            }
-            break;
-        case CHARA_MARISA:
-            if (g_AnmManager->LoadAnm(ANM_FILE_FACE_CHARA_A, "data/face01a.anm", ANM_OFFSET_FACE_CHARA_A) !=
-                ZUN_SUCCESS)
-            {
-                return ZUN_ERROR;
-            }
-            if (g_AnmManager->LoadAnm(ANM_FILE_FACE_CHARA_B, "data/face01b.anm", ANM_OFFSET_FACE_CHARA_B) !=
-                ZUN_SUCCESS)
-            {
-                return ZUN_ERROR;
-            }
-            if (g_AnmManager->LoadAnm(ANM_FILE_FACE_CHARA_C, "data/face01c.anm", ANM_OFFSET_FACE_CHARA_C) !=
-                ZUN_SUCCESS)
-            {
-                return ZUN_ERROR;
-            }
-            break;
-        }
     }
     else
     {
@@ -303,102 +361,42 @@ ZunResult Gui::ActualAddedCallback()
     switch (g_GameManager.currentStage)
     {
     case 1:
-        if (g_AnmManager->LoadAnm(ANM_FILE_FACE_STAGE_A, "data/face03a.anm", ANM_OFFSET_FACE_STAGE_A) != ZUN_SUCCESS)
-        {
-            return ZUN_ERROR;
-        }
-        if (g_AnmManager->LoadAnm(ANM_FILE_FACE_STAGE_B, "data/face03b.anm", ANM_OFFSET_FACE_STAGE_B) != ZUN_SUCCESS)
-        {
-            return ZUN_ERROR;
-        }
         if (this->LoadMsg("data/msg1.dat") != ZUN_SUCCESS)
         {
             return ZUN_ERROR;
         }
         break;
     case 2:
-        if (g_AnmManager->LoadAnm(ANM_FILE_FACE_STAGE_A, "data/face05a.anm", ANM_OFFSET_FACE_STAGE_A) != ZUN_SUCCESS)
-        {
-            return ZUN_ERROR;
-        }
         if (this->LoadMsg("data/msg2.dat") != ZUN_SUCCESS)
         {
             return ZUN_ERROR;
         }
         break;
     case 3:
-        if (g_AnmManager->LoadAnm(ANM_FILE_FACE_STAGE_A, "data/face06a.anm", ANM_OFFSET_FACE_STAGE_A) != ZUN_SUCCESS)
-        {
-            return ZUN_ERROR;
-        }
-        if (g_AnmManager->LoadAnm(ANM_FILE_FACE_STAGE_B, "data/face06b.anm", ANM_OFFSET_FACE_STAGE_B) != ZUN_SUCCESS)
-        {
-            return ZUN_ERROR;
-        }
         if (this->LoadMsg("data/msg3.dat") != ZUN_SUCCESS)
         {
             return ZUN_ERROR;
         }
         break;
     case 4:
-        if (g_AnmManager->LoadAnm(ANM_FILE_FACE_STAGE_A, "data/face08a.anm", ANM_OFFSET_FACE_STAGE_A) != ZUN_SUCCESS)
-        {
-            return ZUN_ERROR;
-        }
-        if (g_AnmManager->LoadAnm(ANM_FILE_FACE_STAGE_B, "data/face08b.anm", ANM_OFFSET_FACE_STAGE_B) != ZUN_SUCCESS)
-        {
-            return ZUN_ERROR;
-        }
         if (this->LoadMsg("data/msg4.dat") != ZUN_SUCCESS)
         {
             return ZUN_ERROR;
         }
         break;
     case 5:
-        if (g_AnmManager->LoadAnm(ANM_FILE_FACE_STAGE_A, "data/face09a.anm", ANM_OFFSET_FACE_STAGE_A) != ZUN_SUCCESS)
-        {
-            return ZUN_ERROR;
-        }
-        if (g_AnmManager->LoadAnm(ANM_FILE_FACE_STAGE_B, "data/face09b.anm", ANM_OFFSET_FACE_STAGE_B) != ZUN_SUCCESS)
-        {
-            return ZUN_ERROR;
-        }
         if (this->LoadMsg("data/msg5.dat") != ZUN_SUCCESS)
         {
             return ZUN_ERROR;
         }
         break;
     case 6:
-        if (g_AnmManager->LoadAnm(ANM_FILE_FACE_STAGE_A, "data/face09b.anm", ANM_OFFSET_FACE_STAGE_A) != ZUN_SUCCESS)
-        {
-            return ZUN_ERROR;
-        }
-        if (g_AnmManager->LoadAnm(ANM_FILE_FACE_STAGE_B, "data/face10a.anm", ANM_OFFSET_FACE_STAGE_B) != ZUN_SUCCESS)
-        {
-            return ZUN_ERROR;
-        }
-        if (g_AnmManager->LoadAnm(ANM_FILE_FACE_STAGE_C, "data/face10b.anm", ANM_OFFSET_FACE_STAGE_C) != ZUN_SUCCESS)
-        {
-            return ZUN_ERROR;
-        }
         if (this->LoadMsg("data/msg6.dat") != ZUN_SUCCESS)
         {
             return ZUN_ERROR;
         }
         break;
     default:
-        if (g_AnmManager->LoadAnm(ANM_FILE_FACE_STAGE_A, "data/face08a.anm", ANM_OFFSET_FACE_STAGE_A) != ZUN_SUCCESS)
-        {
-            return ZUN_ERROR;
-        }
-        if (g_AnmManager->LoadAnm(ANM_FILE_FACE_STAGE_B, "data/face12a.anm", ANM_OFFSET_FACE_STAGE_B) != ZUN_SUCCESS)
-        {
-            return ZUN_ERROR;
-        }
-        if (g_AnmManager->LoadAnm(ANM_FILE_FACE_STAGE_C, "data/face12b.anm", ANM_OFFSET_FACE_STAGE_C) != ZUN_SUCCESS)
-        {
-            return ZUN_ERROR;
-        }
         if (this->LoadMsg("data/msg7.dat") != ZUN_SUCCESS)
         {
             return ZUN_ERROR;
@@ -416,8 +414,6 @@ ZunResult Gui::ActualAddedCallback()
     this->impl->bossHealthBarState = 0;
     this->bossHealthBar1 = 0.0;
     this->bossHealthBar2 = 0.0;
-    g_AnmManager->SetAndExecuteScriptIdx(&this->impl->playerSpellcardPortrait, ANM_SCRIPT_FACE_BOMB_PORTRAIT);
-    g_AnmManager->SetAndExecuteScriptIdx(&this->impl->enemySpellcardPortrait, ANM_SCRIPT_FACE_ENEMY_SPELLCARD_PORTRAIT);
     g_AnmManager->SetAndExecuteScriptIdx(&this->impl->bombSpellcardName, ANM_SCRIPT_TEXT_BOMB_NAME);
     g_AnmManager->SetAndExecuteScriptIdx(&this->impl->enemySpellcardName, ANM_SCRIPT_TEXT_ENEMY_SPELLCARD_NAME);
     g_AnmManager->SetAndExecuteScriptIdx(&this->impl->bombSpellcardBackground, ANM_SCRIPT_FRONT_BOMB_NAME_BACKGROUND);
@@ -500,6 +496,10 @@ void Gui::FreeMsgFile() const
 
 void Gui::MsgRead(i32 msgIdx) const
 {
+    if (this->EnsureCharacterFacesLoaded() != ZUN_SUCCESS || this->EnsureStageFacesLoaded() != ZUN_SUCCESS)
+    {
+        return;
+    }
     this->impl->MsgRead(msgIdx);
     g_Supervisor.unk198 = 3;
     return;

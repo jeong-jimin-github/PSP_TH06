@@ -86,12 +86,17 @@ After the first successful build, packaging can be repeated without compiling:
 - Release builds discard unused code and unwind metadata. The text font cache
   is temporarily released during synchronous stage setup, avoiding the memory
   allocation spike that can terminate a PSP-1000 at `Now Loading`.
+- The PSP renderer uses a bounded, auto-flushing sprite batch instead of the
+  desktop-sized 2.25 MiB vertex buffer. Dialogue portraits are loaded on first
+  use rather than during the stage-transition allocation peak.
 - BGM uses streamed PCM WAV data and reusable mixer buffers. On PSP, audio is
   queued from the frame loop to avoid real-hardware SDL/thread deadlocks.
 - MIDI, window mode, and color-depth options are hidden because they are not
   meaningful on PSP. Music can be set to WAV or Off.
 - Configuration, score data, saves, and replays are written beside the EBOOT.
   The generated directory must remain writable.
+- `loadtrace.txt` is recreated beside the EBOOT on each launch and records the
+  last completed stage-loading step for diagnosing real-hardware shutdowns.
 
 ## Development build
 

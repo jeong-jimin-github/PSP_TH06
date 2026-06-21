@@ -1,6 +1,7 @@
 #include "AnmManager.hpp"
 #include "FileSystem.hpp"
 #include "GameErrorContext.hpp"
+#include "PspDiagnostics.hpp"
 #include "Rng.hpp"
 #include "Supervisor.hpp"
 #include "TextHelper.hpp"
@@ -507,6 +508,7 @@ ZunResult AnmManager::CreateEmptyTexture(i32 textureIdx, u32 width, u32 height, 
 
 ZunResult AnmManager::LoadAnm(i32 anmIdx, const char *path, i32 spriteIdxOffset)
 {
+    PspDiagnostics::TraceStageLoad("anm_begin", path);
     this->ReleaseAnm(anmIdx);
     this->anmFiles[anmIdx] = (AnmRawEntry *)FileSystem::OpenPath(path, 0);
 
@@ -598,6 +600,8 @@ ZunResult AnmManager::LoadAnm(i32 anmIdx, const char *path, i32 spriteIdxOffset)
     }
 
     this->anmFilesSpriteIndexOffsets[anmIdx] = spriteIdxOffset;
+
+    PspDiagnostics::TraceStageLoad("anm_complete", path);
 
     return ZUN_SUCCESS;
 }
@@ -1023,6 +1027,11 @@ void AnmManager::FlushVertexBuffer()
 
 ZunResult AnmManager::AddSpriteToDrawBuffer(VertexTex1Xyzrhw *vertices)
 {
+    if (this->vertexBufferEndPtr + 6 > this->vertexBuffer + VERTEX_BUFFER_CAPACITY)
+    {
+        this->FlushVertexBuffer();
+    }
+
     this->vertexBufferEndPtr[0] = vertices[0];
     this->vertexBufferEndPtr[1] = vertices[1];
     this->vertexBufferEndPtr[2] = vertices[2];

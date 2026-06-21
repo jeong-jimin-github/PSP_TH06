@@ -134,6 +134,8 @@ struct Gui
     static ChainCallbackResult OnDraw(Gui *);
 
     ZunResult ActualAddedCallback();
+    ZunResult EnsureCharacterFacesLoaded() const;
+    ZunResult EnsureStageFacesLoaded() const;
     ZunResult LoadMsg(const char *path) const;
     void FreeMsgFile() const;
 

@@ -7,6 +7,7 @@
 #include "EnemyManager.hpp"
 #include "Gui.hpp"
 #include "Player.hpp"
+#include "PspDiagnostics.hpp"
 #include "ReplayManager.hpp"
 #include "ResultScreen.hpp"
 #include "Rng.hpp"
@@ -277,6 +278,7 @@ ZunResult GameManager::AddedCallback(GameManager *mgr)
     i32 padding[3];
 
     failedToLoadReplay = false;
+    PspDiagnostics::TraceStageLoad("game_manager_begin");
     //    g_Supervisor.d3dDevice->ResourceManagerDiscardBytes(0);
     if (g_Supervisor.curState != SUPERVISOR_STATE_GAMEMANAGER_REINIT)
     {
@@ -406,23 +408,27 @@ ZunResult GameManager::AddedCallback(GameManager *mgr)
         g_GameErrorContext.Log(TH_ERR_GAMEMANAGER_FAILED_TO_INITIALIZE_STAGE);
         return ZUN_ERROR;
     }
+    PspDiagnostics::TraceStageLoad("stage_complete");
 
     if (Player::RegisterChain(0) != ZUN_SUCCESS)
     {
         g_GameErrorContext.Log(TH_ERR_GAMEMANAGER_FAILED_TO_INITIALIZE_PLAYER);
         return ZUN_ERROR;
     }
+    PspDiagnostics::TraceStageLoad("player_complete");
     if (BulletManager::RegisterChain("data/etama.anm") != ZUN_SUCCESS)
     {
         g_GameErrorContext.Log(TH_ERR_GAMEMANAGER_FAILED_TO_INITIALIZE_BULLETMANAGER);
         return ZUN_ERROR;
     }
+    PspDiagnostics::TraceStageLoad("bullets_complete");
     if (EnemyManager::RegisterChain(g_AnmStageFiles[mgr->currentStage].file1,
                                     g_AnmStageFiles[mgr->currentStage].file2) != ZUN_SUCCESS)
     {
         g_GameErrorContext.Log(TH_ERR_GAMEMANAGER_FAILED_TO_INITIALIZE_ENEMYMANAGER);
         return ZUN_ERROR;
     }
+    PspDiagnostics::TraceStageLoad("enemies_complete");
     if (g_EclManager.Load(g_EclFiles[mgr->currentStage]) != ZUN_SUCCESS)
     {
         g_GameErrorContext.Log(TH_ERR_GAMEMANAGER_FAILED_TO_INITIALIZE_ECLMANAGER);
@@ -433,11 +439,13 @@ ZunResult GameManager::AddedCallback(GameManager *mgr)
         g_GameErrorContext.Log(TH_ERR_GAMEMANAGER_FAILED_TO_INITIALIZE_EFFECTMANAGER);
         return ZUN_ERROR;
     }
+    PspDiagnostics::TraceStageLoad("effects_complete");
     if (Gui::RegisterChain() != ZUN_SUCCESS)
     {
         g_GameErrorContext.Log(TH_ERR_GAMEMANAGER_FAILED_TO_INITIALIZE_GUI);
         return ZUN_ERROR;
     }
+    PspDiagnostics::TraceStageLoad("gui_complete");
     if (g_GameManager.isInReplay == 0)
     {
         ReplayManager::RegisterChain(0, "replay/th6_00.rpy");
@@ -465,6 +473,7 @@ ZunResult GameManager::AddedCallback(GameManager *mgr)
         g_Supervisor.curState = SUPERVISOR_STATE_MAINMENU;
     }
     g_Supervisor.unk198 = 3;
+    PspDiagnostics::EndStageLoad();
     return ZUN_SUCCESS;
 }
 
