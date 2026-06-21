@@ -49,6 +49,7 @@ int main(int argc, char *argv[])
         g_GameErrorContext.Flush();
         return -1;
     }
+    PspDiagnostics::TraceStageLoad("config_complete");
 
     //    if (GameWindow::InitD3dInterface())
     //    {
@@ -65,23 +66,29 @@ int main(int argc, char *argv[])
 
 restart:
     GameWindow::CreateGameWindow();
+    PspDiagnostics::TraceStageLoad("window_complete");
 
     g_AnmManager = new AnmManager();
+    PspDiagnostics::TraceStageLoad("anm_manager_complete");
 
     if (GameWindow::InitD3dRendering() != ZUN_SUCCESS)
     {
         g_GameErrorContext.Flush();
         return 1;
     }
+    PspDiagnostics::TraceStageLoad("renderer_complete");
 
     g_SoundPlayer.InitializeDSound();
+    PspDiagnostics::TraceStageLoad("sound_device_complete");
     Controller::GetJoystickCaps();
     Controller::ResetKeyboard();
+    PspDiagnostics::TraceStageLoad("input_complete");
 
     if (Supervisor::RegisterChain() != ZUN_SUCCESS)
     {
         goto stop;
     }
+    PspDiagnostics::TraceStageLoad("supervisor_complete");
     if (!g_Supervisor.cfg.windowed)
     {
         SDL_ShowCursor(SDL_DISABLE);

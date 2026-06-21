@@ -10,6 +10,7 @@
 #include "GameWindow.hpp"
 #include "MainMenu.hpp"
 #include "MusicRoom.hpp"
+#include "PspDiagnostics.hpp"
 #include "ReplayManager.hpp"
 #include "ResultScreen.hpp"
 #include "Rng.hpp"
@@ -85,10 +86,12 @@ ChainCallbackResult Supervisor::OnUpdate(Supervisor *s)
         case SUPERVISOR_STATE_INIT:
         REINIT_MAINMENU:
             s->curState = SUPERVISOR_STATE_MAINMENU;
+            PspDiagnostics::TraceStageLoad("mainmenu_register_begin");
             if (MainMenu::RegisterChain(0) != ZUN_SUCCESS)
             {
                 return CHAIN_CALLBACK_RESULT_EXIT_GAME_SUCCESS;
             }
+            PspDiagnostics::TraceStageLoad("mainmenu_register_complete");
             break;
         case SUPERVISOR_STATE_MAINMENU:
             switch (s->curState)
@@ -307,6 +310,7 @@ ZunResult Supervisor::AddedCallback(Supervisor *s)
     }
 
     g_Pbg3Archives = s->pbg3Archives;
+    PspDiagnostics::TraceStageLoad("supervisor_added_begin");
     if (s->LoadPbg3(IN_PBG3_INDEX, TH_IN_DAT_FILE))
     {
         return ZUN_ERROR;
@@ -315,11 +319,13 @@ ZunResult Supervisor::AddedCallback(Supervisor *s)
     // D3DX code swaps twice to copy to both buffers
 
     g_AnmManager->LoadSurface(0, "data/title/th06logo.jpg");
+    PspDiagnostics::TraceStageLoad("splash_loaded");
     g_AnmManager->CopySurfaceToBackBuffer(0, 0, 0, 0, 0);
     //    if (g_Supervisor.d3dDevice->Present(0, 0, 0, 0) < 0)
     //        g_Supervisor.d3dDevice->Reset(&g_Supervisor.presentParameters);
 
     g_GfxBackend->SwapBuffers();
+    PspDiagnostics::TraceStageLoad("splash_presented");
 
     //
     g_AnmManager->CopySurfaceToBackBuffer(0, 0, 0, 0, 0);
@@ -340,6 +346,7 @@ ZunResult Supervisor::AddedCallback(Supervisor *s)
     g_Rng.Initialize((u16)std::time(NULL));
 
     g_SoundPlayer.InitSoundBuffers();
+    PspDiagnostics::TraceStageLoad("sound_buffers_complete");
     if (g_AnmManager->LoadAnm(ANM_FILE_TEXT, "data/text.anm", ANM_OFFSET_TEXT) != 0)
     {
         return ZUN_ERROR;
@@ -353,15 +360,19 @@ ZunResult Supervisor::AddedCallback(Supervisor *s)
 
     s->unk198 = 0;
     g_AnmManager->SetupVertexBuffer();
+    PspDiagnostics::TraceStageLoad("vertex_buffer_complete");
 
     if (TextHelper::CreateTextBuffer() != ZUN_SUCCESS)
     {
         return ZUN_ERROR;
     }
+    PspDiagnostics::TraceStageLoad("text_buffer_complete");
 
     s->ReleasePbg3(IN_PBG3_INDEX);
     if (g_Supervisor.LoadPbg3(MD_PBG3_INDEX, TH_MD_DAT_FILE) != 0)
         return ZUN_ERROR;
+
+    PspDiagnostics::TraceStageLoad("supervisor_added_complete");
 
     return ZUN_SUCCESS;
 }

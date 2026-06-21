@@ -39,7 +39,9 @@ namespace PspDiagnostics
 void ResetLoadTrace()
 {
 #ifdef __PSP__
-    g_IsTracingStageLoad = false;
+    // Keep startup asset loads visible too. This remains cheap during normal
+    // play because traces are only emitted at explicit load checkpoints.
+    g_IsTracingStageLoad = true;
     WriteTrace("boot", nullptr, "w");
 #endif
 }

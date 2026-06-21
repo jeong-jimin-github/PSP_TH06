@@ -1,6 +1,7 @@
 #include "GameWindow.hpp"
 #include "AnmManager.hpp"
 #include "GameErrorContext.hpp"
+#include "PspDiagnostics.hpp"
 #include "ScreenEffect.hpp"
 #include "SoundPlayer.hpp"
 #include "Stage.hpp"
@@ -25,6 +26,10 @@ f64 g_LastFrameTime;
 
 #ifdef TH06_AUTOTEST_FRAMES
 u32 g_AutotestPresentedFrames;
+#endif
+
+#ifdef __PSP__
+static u32 g_PspStartupTraceFrames;
 #endif
 
 #define FRAME_TIME (1000. / 60.)
@@ -80,11 +85,23 @@ RenderResult GameWindow::Render()
 
             g_AnmManager->ClearVertexBuffer();
             g_AnmManager->flushesThisFrame = 0;
+#ifdef __PSP__
+            if (g_PspStartupTraceFrames < 4)
+                PspDiagnostics::TraceStageLoad("startup_draw_begin");
+#endif
             g_Chain.RunDrawChain();
+#ifdef __PSP__
+            if (g_PspStartupTraceFrames < 4)
+                PspDiagnostics::TraceStageLoad("startup_draw_complete");
+#endif
             g_AnmManager->SetCurrentTexture(0);
         }
 
         g_AnmManager->FlushVertexBuffer();
+#ifdef __PSP__
+        if (g_PspStartupTraceFrames < 4)
+            PspDiagnostics::TraceStageLoad("startup_flush_complete");
+#endif
         g_Supervisor.viewport.x = 0;
         g_Supervisor.viewport.y = 0;
         g_Supervisor.viewport.width = GAME_WINDOW_WIDTH;
@@ -92,8 +109,16 @@ RenderResult GameWindow::Render()
         g_AnmManager->SetProjectionMode(PROJECTION_MODE_PERSPECTIVE);
         g_Supervisor.viewport.Set();
         res = g_Chain.RunCalcChain();
+#ifdef __PSP__
+        if (g_PspStartupTraceFrames < 4)
+            PspDiagnostics::TraceStageLoad("startup_calc_complete");
+#endif
         g_SoundPlayer.PlaySounds();
         g_SoundPlayer.PumpAudio();
+#ifdef __PSP__
+        if (g_PspStartupTraceFrames < 4)
+            PspDiagnostics::TraceStageLoad("startup_audio_complete");
+#endif
 
         if (res == 0)
         {
@@ -197,7 +222,18 @@ void GameWindow::Present()
         g_Supervisor.unk198--;
     }
 
+#ifdef __PSP__
+    if (g_PspStartupTraceFrames < 4)
+        PspDiagnostics::TraceStageLoad("startup_swap_begin");
+#endif
     g_GfxBackend->SwapBuffers();
+#ifdef __PSP__
+    if (g_PspStartupTraceFrames < 4)
+    {
+        PspDiagnostics::TraceStageLoad("startup_swap_complete");
+        g_PspStartupTraceFrames++;
+    }
+#endif
 
 #ifdef TH06_AUTOTEST_FRAMES
     ++g_AutotestPresentedFrames;

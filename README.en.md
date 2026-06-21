@@ -90,8 +90,9 @@ After the first successful build, packaging can be repeated without compiling:
   is temporarily released during synchronous stage setup, avoiding the memory
   allocation spike that can terminate a PSP-1000 at `Now Loading`.
 - The renderer uses a bounded, auto-flushing sprite batch instead of the
-  desktop-sized 2.25 MiB vertex buffer. PSP vertex colors let bullets and
-  effects with different alpha values remain in one batch.
+  desktop-sized 2.25 MiB vertex buffer. Modulation colors are quantized to
+  RGBA4444 precision to reduce fade-related flushes while retaining the stable
+  fixed-color path used by real-hardware PSPGL.
 - Trigonometric operations use the PSP VFPU, and frame-critical files receive
   separate speed-oriented compiler optimization.
 - BGM uses streamed PCM WAV data and reusable mixer buffers. On PSP, audio is
