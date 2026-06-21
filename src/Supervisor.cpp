@@ -327,6 +327,7 @@ ZunResult Supervisor::AddedCallback(Supervisor *s)
     g_GfxBackend->SwapBuffers();
     PspDiagnostics::TraceStageLoad("splash_presented");
 
+#ifndef __PSP__
     //
     g_AnmManager->CopySurfaceToBackBuffer(0, 0, 0, 0, 0);
     //    if (g_Supervisor.d3dDevice->Present(0, 0, 0, 0) < 0)
@@ -334,17 +335,27 @@ ZunResult Supervisor::AddedCallback(Supervisor *s)
     //
 
     g_GfxBackend->SwapBuffers();
+#endif
+
+    // D3D needed the duplicate copy/present to seed both buffers. PSPGL's
+    // second startup swap is unnecessary and can terminate a real PSP-1000.
+    PspDiagnostics::TraceStageLoad("splash_sequence_complete");
 
     g_AnmManager->ReleaseSurface(0);
+    PspDiagnostics::TraceStageLoad("splash_released");
 
     s->startupTimeBeforeMenuMusic = SDL_GetTicks();
     Supervisor::SetupDInput(s);
+    PspDiagnostics::TraceStageLoad("supervisor_input_complete");
 
     s->midiOutput = new MidiOutput();
+    PspDiagnostics::TraceStageLoad("midi_stub_complete");
 
     // Replacing a seeding method that used win32 timeGetTime
     g_Rng.Initialize((u16)std::time(NULL));
+    PspDiagnostics::TraceStageLoad("rng_complete");
 
+    PspDiagnostics::TraceStageLoad("sound_buffers_begin");
     g_SoundPlayer.InitSoundBuffers();
     PspDiagnostics::TraceStageLoad("sound_buffers_complete");
     if (g_AnmManager->LoadAnm(ANM_FILE_TEXT, "data/text.anm", ANM_OFFSET_TEXT) != 0)
