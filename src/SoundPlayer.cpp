@@ -1,6 +1,7 @@
 #include "SoundPlayer.hpp"
 
 #include "FileSystem.hpp"
+#include "PspDiagnostics.hpp"
 #include "Supervisor.hpp"
 #include "i18n.hpp"
 #include "utils.hpp"
@@ -328,12 +329,17 @@ ZunResult SoundPlayer::InitSoundBuffers()
 
     for (int idx = 0; idx < ARRAY_SIZE_SIGNED(g_SoundBufferIdxVol); idx++)
     {
-        if (this->LoadSound(idx, g_SFXList[g_SoundBufferIdxVol[idx].bufferIdx],
-                            1.0f / ZUN_POWF(10.0f, (float)g_SoundBufferIdxVol[idx].volume / -2000)) != ZUN_SUCCESS)
+        const char *soundPath = g_SFXList[g_SoundBufferIdxVol[idx].bufferIdx];
+        PspDiagnostics::TraceStageLoad("sound_volume_begin", soundPath);
+        const f32 volumeMultiplier =
+            1.0f / ZUN_POWF(10.0f, (float)g_SoundBufferIdxVol[idx].volume / -2000);
+        PspDiagnostics::TraceStageLoad("sound_load_begin", soundPath);
+        if (this->LoadSound(idx, soundPath, volumeMultiplier) != ZUN_SUCCESS)
         {
             g_GameErrorContext.Log(TH_ERR_SOUNDPLAYER_FAILED_TO_LOAD_SOUND_FILE, g_SFXList[idx]);
             return ZUN_ERROR;
         }
+        PspDiagnostics::TraceStageLoad("sound_load_complete", soundPath);
 
         this->soundBuffers[idx].isPlaying = false;
         this->soundBuffers[idx].pos = 0;

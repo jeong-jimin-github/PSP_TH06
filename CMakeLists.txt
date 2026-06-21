@@ -106,7 +106,6 @@ if(PSP)
         src/EnemyManager.cpp
         src/EffectManager.cpp
         src/Player.cpp
-        src/SoundPlayer.cpp
         src/Stage.cpp
         src/EclManager.cpp
         PROPERTIES COMPILE_OPTIONS "-O2;-fno-math-errno"

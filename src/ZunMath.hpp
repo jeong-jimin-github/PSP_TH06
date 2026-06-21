@@ -98,7 +98,9 @@ inline u16 RotateLeft16(u16 n, u8 s)
 #define ZUN_TANF(angle) (vfpu_tanf((f32)(angle)))
 #define ZUN_FMODF(x, y) (vfpu_fmodf((f32)(x), (f32)(y)))
 #define ZUN_ATAN2F(x, y) (vfpu_atan2f((f32)(x), (f32)(y)))
-#define ZUN_POWF(x, y) (vfpu_powf((f32)(x), (f32)(y)))
+// vfpu_powf terminates some real PSP-1000 units during startup sound-volume
+// setup. pow is not frame-critical here, so use the stable newlib path.
+#define ZUN_POWF(x, y) (std::pow((f32)(x), (f32)(y)))
 #else
 #define ZUN_SINF(angle) (std::sin((f32)(angle)))
 #define ZUN_COSF(angle) (std::cos((f32)(angle)))
