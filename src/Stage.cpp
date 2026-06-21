@@ -336,6 +336,10 @@ ZunResult Stage::AddedCallback(Stage *stage)
     interpInitial.y = 0;
     interpInitial.z = 1.0;
     stage->facingDirInterpInitial = interpInitial;
+    // GameManager updates before Stage in the calc chain.  Seed the shared
+    // direction now so its very first camera matrix never normalizes a zero
+    // vector (which produces NaNs and crashes real PSPGL hardware).
+    g_GameManager.stageCameraFacingDir = interpInitial;
 
     stage->facingDirInterpDuration = 1;
     facingDirTimer = &stage->facingDirInterpTimer;

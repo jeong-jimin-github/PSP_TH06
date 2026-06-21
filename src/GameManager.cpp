@@ -161,11 +161,17 @@ ChainCallbackResult GameManager::OnUpdate(GameManager *gameManager)
     g_Supervisor.viewport.minZ = 0.5;
     g_Supervisor.viewport.maxZ = 1.0;
 
+    PspDiagnostics::TraceRuntime("gm_camera_before");
     SetupCamera(0);
+    PspDiagnostics::TraceRuntime("gm_camera_after");
 
+    PspDiagnostics::TraceRuntime("gm_viewport_before");
     g_Supervisor.viewport.Set();
+    PspDiagnostics::TraceRuntime("gm_viewport_after");
+    PspDiagnostics::TraceRuntime("gm_depth_clear_before");
     g_GfxBackend->SetClearDepth(1.0f);
     g_GfxBackend->Clear(CLEAR_DEPTH_BUFFER);
+    PspDiagnostics::TraceRuntime("gm_depth_clear_after");
 
     //    g_Supervisor.d3dDevice->SetViewport(&g_Supervisor.viewport);
     //    g_Supervisor.d3dDevice->Clear(0, NULL, D3DCLEAR_ZBUFFER, g_Stage.skyFog.color, 1.0, 0);
@@ -558,6 +564,14 @@ void GameManager::SetupCamera(f32 extraRenderDistance)
     f32 atVecY;
     f32 atVecX;
     f32 eyeVecZ;
+    ZunVec3 facingDir = g_GameManager.stageCameraFacingDir;
+
+    if (facingDir.x * facingDir.x + facingDir.y * facingDir.y + facingDir.z * facingDir.z < 0.000001f)
+    {
+        facingDir.x = 0.0f;
+        facingDir.y = 0.0f;
+        facingDir.z = 1.0f;
+    }
 
     g_AnmManager->SetProjectionMode(PROJECTION_MODE_PERSPECTIVE);
 
@@ -569,12 +583,12 @@ void GameManager::SetupCamera(f32 extraRenderDistance)
     upVec.x = 0.0f;
     upVec.y = 1.0f;
     upVec.z = 0.0f;
-    atVecY = -viewportMiddleHeight + (f32)g_GameManager.stageCameraFacingDir.y;
-    atVecX = viewportMiddleWidth + (f32)g_GameManager.stageCameraFacingDir.x;
+    atVecY = -viewportMiddleHeight + facingDir.y;
+    atVecX = viewportMiddleWidth + facingDir.x;
     atVec.x = atVecX;
     atVec.y = atVecY;
     atVec.z = 0;
-    eyeVecZ = -cameraDistance * (f32)g_GameManager.stageCameraFacingDir.z;
+    eyeVecZ = -cameraDistance * facingDir.z;
     eyeVec.x = viewportMiddleWidth;
     eyeVec.y = -viewportMiddleHeight;
     eyeVec.z = eyeVecZ;
