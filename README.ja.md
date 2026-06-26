@@ -2,13 +2,11 @@
 
 [한국어](README.md) | **日本語** | [English](README.en.md)
 
-````carousel
-![ゲームタイトル](assets/gameplay_cut1.png)
-<!-- slide -->
-![ステージ開始](assets/gameplay_cut2.png)
-<!-- slide -->
-![インゲームプレイ](assets/gameplay_cut3.png)
-````
+<p align="center">
+  <img src="assets/gameplay_cut1.png" width="32%" alt="ゲームタイトル" />
+  <img src="assets/gameplay_cut2.png" width="32%" alt="ステージ開始" />
+  <img src="assets/gameplay_cut3.png" width="32%" alt="インゲームプレイ" />
+</p>
 
 [GensokyoClub/th06](https://github.com/GensokyoClub/th06) の `portable`
 ブランチを基にした、**東方紅魔郷 ～ the Embodiment of Scarlet Devil**（TH06）の
