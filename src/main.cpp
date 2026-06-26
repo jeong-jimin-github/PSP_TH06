@@ -89,10 +89,12 @@ restart:
         goto stop;
     }
     PspDiagnostics::TraceStageLoad("supervisor_complete");
+#ifndef __PSP__
     if (!g_Supervisor.cfg.windowed)
     {
         SDL_ShowCursor(SDL_DISABLE);
     }
+#endif
 
     g_GameWindow.curFrame = 0;
 
@@ -170,10 +172,12 @@ stop:
 
         g_GameErrorContext.Log(TH_ERR_OPTION_CHANGED_RESTART);
 
+#ifndef __PSP__
         if (!g_Supervisor.cfg.windowed)
         {
             SDL_ShowCursor(SDL_ENABLE);
         }
+#endif
 
         goto restart;
     }

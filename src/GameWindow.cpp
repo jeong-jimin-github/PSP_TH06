@@ -24,6 +24,31 @@ GfxInterface *g_GfxBackend;
 i32 g_TickCountToEffectiveFramerate;
 f64 g_LastFrameTime;
 
+#ifdef __PSP__
+u32 g_ViewportWidth = 362;
+u32 g_ViewportHeight = 272;
+u32 g_ViewportOffX = 59;
+u32 g_ViewportOffY = 0;
+
+void UpdatePspViewport()
+{
+    if (g_Supervisor.cfg.windowed == 1)
+    {
+        g_ViewportWidth = 362;
+        g_ViewportHeight = 272;
+        g_ViewportOffX = 59;
+        g_ViewportOffY = 0;
+    }
+    else
+    {
+        g_ViewportWidth = 480;
+        g_ViewportHeight = 272;
+        g_ViewportOffX = 0;
+        g_ViewportOffY = 0;
+    }
+}
+#endif
+
 #ifdef TH06_AUTOTEST_FRAMES
 u32 g_AutotestPresentedFrames;
 #endif
@@ -106,6 +131,8 @@ RenderResult GameWindow::Render()
         g_Supervisor.viewport.y = 0;
         g_Supervisor.viewport.width = GAME_WINDOW_WIDTH;
         g_Supervisor.viewport.height = GAME_WINDOW_HEIGHT;
+        g_Supervisor.viewport.minZ = 0.0f;
+        g_Supervisor.viewport.maxZ = 1.0f;
         g_AnmManager->SetProjectionMode(PROJECTION_MODE_PERSPECTIVE);
         g_Supervisor.viewport.Set();
         res = g_Chain.RunCalcChain();
@@ -244,6 +271,9 @@ void GameWindow::Present()
 
 void GameWindow::CreateGameWindow()
 {
+#ifdef __PSP__
+    UpdatePspViewport();
+#endif
     SDL_Init(SDL_INIT_GAMECONTROLLER);
 
     for (u32 i = 0; i < ARRAY_SIZE(s_RenderBackends); i++)

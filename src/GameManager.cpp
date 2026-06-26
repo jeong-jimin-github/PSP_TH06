@@ -503,6 +503,13 @@ void GameManager::CutChain()
 {
     g_Chain.Cut(&g_GameManagerCalcChain);
     g_Chain.Cut(&g_GameManagerDrawChain);
+    g_Supervisor.viewport.x = 0;
+    g_Supervisor.viewport.y = 0;
+    g_Supervisor.viewport.width = GAME_WINDOW_WIDTH;
+    g_Supervisor.viewport.height = GAME_WINDOW_HEIGHT;
+    g_Supervisor.viewport.minZ = 0.0f;
+    g_Supervisor.viewport.maxZ = 1.0f;
+    g_Supervisor.viewport.Set();
 }
 
 void GameManager::SetupCameraStageBackground(f32 extraRenderDistance)

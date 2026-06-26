@@ -23,12 +23,15 @@
 #endif
 
 #ifdef __PSP__
-// Exact 1/2 scale of the original 640x480 image. Avoid fractional viewport
-// scaling on PSP and leave true black borders on every side of the 480x272 LCD.
-#define VIEWPORT_WIDTH 320
-#define VIEWPORT_OFF_X 80
-#define VIEWPORT_HEIGHT 240
-#define VIEWPORT_OFF_Y 16
+extern u32 g_ViewportWidth;
+extern u32 g_ViewportHeight;
+extern u32 g_ViewportOffX;
+extern u32 g_ViewportOffY;
+void UpdatePspViewport();
+#define VIEWPORT_WIDTH g_ViewportWidth
+#define VIEWPORT_OFF_X g_ViewportOffX
+#define VIEWPORT_HEIGHT g_ViewportHeight
+#define VIEWPORT_OFF_Y g_ViewportOffY
 #else
 #define VIEWPORT_WIDTH GAME_WINDOW_WIDTH_REAL
 #define VIEWPORT_OFF_X 0

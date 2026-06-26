@@ -86,6 +86,13 @@ ChainCallbackResult Supervisor::OnUpdate(Supervisor *s)
         case SUPERVISOR_STATE_INIT:
         REINIT_MAINMENU:
             s->curState = SUPERVISOR_STATE_MAINMENU;
+            s->viewport.x = 0;
+            s->viewport.y = 0;
+            s->viewport.width = GAME_WINDOW_WIDTH;
+            s->viewport.height = GAME_WINDOW_HEIGHT;
+            s->viewport.minZ = 0.0f;
+            s->viewport.maxZ = 1.0f;
+            s->viewport.Set();
             PspDiagnostics::TraceStageLoad("mainmenu_register_begin");
             if (MainMenu::RegisterChain(0) != ZUN_SUCCESS)
             {
@@ -713,7 +720,11 @@ ZunResult Supervisor::LoadConfig(const char *path)
         }
         g_Supervisor.cfg.playSounds = 1;
         g_Supervisor.cfg.defaultDifficulty = 1;
+#ifdef __PSP__
+        g_Supervisor.cfg.windowed = 1;
+#else
         g_Supervisor.cfg.windowed = false;
+#endif
         g_Supervisor.cfg.frameskipConfig = 0;
         g_Supervisor.cfg.controllerMapping = g_ControllerMapping;
         g_GameErrorContext.Log(TH_ERR_CONFIG_NOT_FOUND);
@@ -746,7 +757,11 @@ ZunResult Supervisor::LoadConfig(const char *path)
             }
             g_Supervisor.cfg.playSounds = 1;
             g_Supervisor.cfg.defaultDifficulty = 1;
+#ifdef __PSP__
+            g_Supervisor.cfg.windowed = 1;
+#else
             g_Supervisor.cfg.windowed = false;
+#endif
             g_Supervisor.cfg.frameskipConfig = 0;
             g_Supervisor.cfg.controllerMapping = g_ControllerMapping;
             std::memset(&g_Supervisor.cfg.opts, 0, sizeof(GameConfigOptsShifts));
@@ -762,7 +777,6 @@ ZunResult Supervisor::LoadConfig(const char *path)
     // cutting static texture memory roughly in half (essential on PSP-1000).
     g_Supervisor.cfg.opts |= (1 << GCOS_FORCE_16BIT_COLOR_MODE);
     g_Supervisor.cfg.colorMode16bit = 1;
-    g_Supervisor.cfg.windowed = 0;
 
     // The PSP build has no system MIDI synthesizer. Never retain MIDI from an
     // older configuration, since entering that path starts an unsupported

@@ -108,7 +108,8 @@ if(PSP)
         src/Player.cpp
         src/Stage.cpp
         src/EclManager.cpp
-        PROPERTIES COMPILE_OPTIONS "-O2;-fno-math-errno"
+        src/ZunMath.cpp
+        PROPERTIES COMPILE_OPTIONS "-O3;-ffast-math;-fno-math-errno"
     )
     target_link_options(th06_psp PRIVATE
         -Wl,--gc-sections

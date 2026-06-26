@@ -1095,8 +1095,7 @@ ChainCallbackResult BulletManager::OnDraw(BulletManager *mgr)
     Laser *curLaser;
     f32 laserOffset;
     f32 cosine;
-    Bullet *curBullet1;
-    Bullet *curBullet2;
+    Bullet *curBullet;
 
     g_AnmManager->SetDepthFunc(DEPTH_FUNC_ALWAYS);
 
@@ -1137,120 +1136,82 @@ ChainCallbackResult BulletManager::OnDraw(BulletManager *mgr)
 
     g_ItemManager.OnDraw();
 
+    // Optimize: Single pass classification instead of 4 separate loops over 640 bullets
+    u16 bulletsGt16[640];
+    u16 bulletsEq16RingBall[640];
+    u16 bulletsEq16Other[640];
+    u16 bulletsEq8[640];
+    i32 countGt16 = 0;
+    i32 countEq16RingBall = 0;
+    i32 countEq16Other = 0;
+    i32 countEq8 = 0;
+
+    for (idx = 0; idx < ARRAY_SIZE_SIGNED(mgr->bullets); idx++)
+    {
+        curBullet = &mgr->bullets[idx];
+        if (curBullet->state == 0)
+        {
+            continue;
+        }
+
+        if (curBullet->sprites.bulletHeight > 16)
+        {
+            bulletsGt16[countGt16++] = idx;
+        }
+        else if (curBullet->sprites.bulletHeight == 16)
+        {
+            if (curBullet->sprites.spriteBullet.anmFileIndex == ANM_SCRIPT_BULLET3_RING_BALL ||
+                curBullet->sprites.spriteBullet.anmFileIndex == ANM_SCRIPT_BULLET3_BALL)
+            {
+                bulletsEq16RingBall[countEq16RingBall++] = idx;
+            }
+            else
+            {
+                bulletsEq16Other[countEq16Other++] = idx;
+            }
+        }
+        else if (curBullet->sprites.bulletHeight == 8)
+        {
+            bulletsEq8[countEq8++] = idx;
+        }
+    }
+
     if (g_Supervisor.hasD3dHardwareVertexProcessing)
     {
-        for (curBullet1 = &mgr->bullets[0], idx = 0; idx < ARRAY_SIZE_SIGNED(mgr->bullets); idx++, curBullet1++)
+        for (idx = 0; idx < countGt16; idx++)
         {
-            if (curBullet1->state == 0)
-            {
-                continue;
-            }
-
-            if (curBullet1->sprites.bulletHeight > 16)
-            {
-                BulletManager::DrawBullet(curBullet1);
-            }
+            BulletManager::DrawBullet(&mgr->bullets[bulletsGt16[idx]]);
         }
-
-        for (curBullet1 = &mgr->bullets[0], idx = 0; idx < ARRAY_SIZE_SIGNED(mgr->bullets); idx++, curBullet1++)
+        for (idx = 0; idx < countEq16RingBall; idx++)
         {
-            if (curBullet1->state == 0)
-            {
-                continue;
-            }
-
-            if (curBullet1->sprites.bulletHeight == 16 &&
-                (curBullet1->sprites.spriteBullet.anmFileIndex == ANM_SCRIPT_BULLET3_RING_BALL ||
-                 curBullet1->sprites.spriteBullet.anmFileIndex == ANM_SCRIPT_BULLET3_BALL))
-            {
-                BulletManager::DrawBullet(curBullet1);
-            }
+            BulletManager::DrawBullet(&mgr->bullets[bulletsEq16RingBall[idx]]);
         }
-
-        for (curBullet1 = &mgr->bullets[0], idx = 0; idx < ARRAY_SIZE_SIGNED(mgr->bullets); idx++, curBullet1++)
+        for (idx = 0; idx < countEq16Other; idx++)
         {
-            if (curBullet1->state == 0)
-            {
-                continue;
-            }
-
-            if (curBullet1->sprites.bulletHeight == 16 &&
-                curBullet1->sprites.spriteBullet.anmFileIndex != ANM_SCRIPT_BULLET3_RING_BALL &&
-                curBullet1->sprites.spriteBullet.anmFileIndex != ANM_SCRIPT_BULLET3_BALL)
-            {
-                BulletManager::DrawBullet(curBullet1);
-            }
+            BulletManager::DrawBullet(&mgr->bullets[bulletsEq16Other[idx]]);
         }
-
-        for (curBullet1 = &mgr->bullets[0], idx = 0; idx < ARRAY_SIZE_SIGNED(mgr->bullets); idx++, curBullet1++)
+        for (idx = 0; idx < countEq8; idx++)
         {
-            if (curBullet1->state == 0)
-            {
-                continue;
-            }
-
-            if (curBullet1->sprites.bulletHeight == 8)
-            {
-                BulletManager::DrawBullet(curBullet1);
-            }
+            BulletManager::DrawBullet(&mgr->bullets[bulletsEq8[idx]]);
         }
     }
     else
     {
-        for (curBullet2 = &mgr->bullets[0], idx = 0; idx < ARRAY_SIZE_SIGNED(mgr->bullets); idx++, curBullet2++)
+        for (idx = 0; idx < countGt16; idx++)
         {
-            if (curBullet2->state == 0)
-            {
-                continue;
-            }
-
-            if (curBullet2->sprites.bulletHeight > 16)
-            {
-                BulletManager::DrawBulletNoHwVertex(curBullet2);
-            }
+            BulletManager::DrawBulletNoHwVertex(&mgr->bullets[bulletsGt16[idx]]);
         }
-
-        for (curBullet2 = &mgr->bullets[0], idx = 0; idx < ARRAY_SIZE_SIGNED(mgr->bullets); idx++, curBullet2++)
+        for (idx = 0; idx < countEq16RingBall; idx++)
         {
-            if (curBullet2->state == 0)
-            {
-                continue;
-            }
-
-            if (curBullet2->sprites.bulletHeight == 16 &&
-                (curBullet2->sprites.spriteBullet.anmFileIndex == ANM_SCRIPT_BULLET3_RING_BALL ||
-                 curBullet2->sprites.spriteBullet.anmFileIndex == ANM_SCRIPT_BULLET3_BALL))
-            {
-                BulletManager::DrawBulletNoHwVertex(curBullet2);
-            }
+            BulletManager::DrawBulletNoHwVertex(&mgr->bullets[bulletsEq16RingBall[idx]]);
         }
-
-        for (curBullet2 = &mgr->bullets[0], idx = 0; idx < ARRAY_SIZE_SIGNED(mgr->bullets); idx++, curBullet2++)
+        for (idx = 0; idx < countEq16Other; idx++)
         {
-            if (curBullet2->state == 0)
-            {
-                continue;
-            }
-
-            if (curBullet2->sprites.bulletHeight == 16 &&
-                curBullet2->sprites.spriteBullet.anmFileIndex != ANM_SCRIPT_BULLET3_RING_BALL &&
-                curBullet2->sprites.spriteBullet.anmFileIndex != ANM_SCRIPT_BULLET3_BALL)
-            {
-                BulletManager::DrawBulletNoHwVertex(curBullet2);
-            }
+            BulletManager::DrawBulletNoHwVertex(&mgr->bullets[bulletsEq16Other[idx]]);
         }
-
-        for (curBullet2 = &mgr->bullets[0], idx = 0; idx < ARRAY_SIZE_SIGNED(mgr->bullets); idx++, curBullet2++)
+        for (idx = 0; idx < countEq8; idx++)
         {
-            if (curBullet2->state == 0)
-            {
-                continue;
-            }
-
-            if (curBullet2->sprites.bulletHeight == 8)
-            {
-                BulletManager::DrawBulletNoHwVertex(curBullet2);
-            }
+            BulletManager::DrawBulletNoHwVertex(&mgr->bullets[bulletsEq8[idx]]);
         }
     }
 

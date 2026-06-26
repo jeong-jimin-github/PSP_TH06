@@ -31,10 +31,14 @@ GfxInterface *FixedFunctionGL::Init()
     i32 x = SDL_WINDOWPOS_UNDEFINED;
     i32 y = SDL_WINDOWPOS_UNDEFINED;
 
+#ifdef __PSP__
+    flags |= SDL_WINDOW_FULLSCREEN;
+#else
     if (g_Supervisor.cfg.windowed == 0)
     {
         flags |= SDL_WINDOW_FULLSCREEN;
     }
+#endif
     FixedFunctionGL *self = new FixedFunctionGL();
 
     SDL_Window *window = SDL_CreateWindow(TH_WINDOW_TITLE, x, y, width, height, flags);

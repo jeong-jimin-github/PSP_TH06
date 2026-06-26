@@ -162,7 +162,7 @@ struct ZunVec2
 
     f32 VectorLength() const
     {
-        return std::sqrt((f64)(this->x * this->x + this->y * this->y));
+        return ZUN_SQRTF(this->x * this->x + this->y * this->y);
     }
 
     f64 VectorLengthF64() const
