@@ -2,6 +2,8 @@
 
 [한국어](README.md) | **日本語** | [English](README.en.md)
 
+![ゲームプレイ画面](assets/gameplay.png)
+
 [GensokyoClub/th06](https://github.com/GensokyoClub/th06) の `portable`
 ブランチを基にした、**東方紅魔郷 ～ the Embodiment of Scarlet Devil**（TH06）の
 実験的なPSP Homebrew移植です。

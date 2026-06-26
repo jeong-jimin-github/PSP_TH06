@@ -42,7 +42,7 @@ if ! command -v psp-cmake &> /dev/null; then
 fi
 
 echo "==> Configuring and building PSP project..."
-psp-cmake -S . -B build/psp -DCMAKE_BUILD_TYPE=Release
+psp-cmake -S . -B build/psp -DCMAKE_BUILD_TYPE=Release ${EXTRA_CMAKE_ARGS}
 cmake --build build/psp -j$(sysctl -n hw.ncpu)
 
 # 3. Build Host Extractor Tool

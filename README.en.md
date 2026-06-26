@@ -2,6 +2,8 @@
 
 [한국어](README.md) | [日本語](README.ja.md) | **English**
 
+![Gameplay Screenshot](assets/gameplay.png)
+
 An experimental PSP homebrew port of **Touhou Koumakyou ~ The Embodiment of
 Scarlet Devil** (TH06), based on the `portable` branch of
 [GensokyoClub/th06](https://github.com/GensokyoClub/th06).
