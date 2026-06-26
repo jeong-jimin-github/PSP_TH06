@@ -90,6 +90,10 @@ elif [ -f "$SOURCE_DIR/NotoSansJP-Regular.ttf" ]; then
     FONT_FILE="$SOURCE_DIR/NotoSansJP-Regular.ttf"
 elif [ -f "/System/Library/Fonts/Supplemental/MS Gothic.ttf" ]; then
     FONT_FILE="/System/Library/Fonts/Supplemental/MS Gothic.ttf"
+elif [ -n "$(find /System/Library/Fonts -maxdepth 1 -name "*角*シック*W3.ttc" -print -quit 2>/dev/null)" ]; then
+    FONT_FILE=$(find /System/Library/Fonts -maxdepth 1 -name "*角*シック*W3.ttc" -print -quit 2>/dev/null)
+elif [ -n "$(find /System/Library/Fonts -maxdepth 1 -name "*角*シック*.ttc" -print -quit 2>/dev/null)" ]; then
+    FONT_FILE=$(find /System/Library/Fonts -maxdepth 1 -name "*角*シック*.ttc" -print -quit 2>/dev/null)
 elif [ -f "NotoSans-Regular.ttf" ]; then
     FONT_FILE="NotoSans-Regular.ttf"
 fi

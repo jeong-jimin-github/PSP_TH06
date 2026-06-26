@@ -1018,10 +1018,16 @@ static const ZunColor COLOR4 = 0xff4040;
 
 void Gui::DrawGameScene()
 {
+    g_AnmManager->FlushVertexBuffer();
+    u32 oldOpts = g_Supervisor.cfg.opts;
+    g_Supervisor.cfg.opts |= (1 << GCOS_DONT_USE_VERTEX_BUF);
+
     AnmVm *vm;
     i32 idx;
     f32 xPos;
     f32 yPos;
+
+
 
     if (this->impl->msg.currentMsgIdx < 0 && (this->bossPresent + this->impl->bossHealthBarState) > 0)
     {
@@ -1127,60 +1133,80 @@ void Gui::DrawGameScene()
     if ((g_Supervisor.cfg.opts >> GCOS_DISPLAY_MINIMUM_GRAPHICS & 1) == 0)
     {
         vm = &this->impl->vms[22];
+        u32 oldIsVisible = vm->flags.isVisible;
+        u32 oldFlag1 = vm->flags.flag1;
+        vm->flags.isVisible = 1;
+        vm->flags.flag1 = 1;
+
         xPos = 496.0f;
-        vm->pos = ZunVec3(xPos, 58.0f, 0.49f);
+        vm->pos = ZunVec3(xPos, 58.0f, 0.0f);
         g_AnmManager->DrawNoRotation(vm);
-        vm->pos = ZunVec3(xPos, 82.0f, 0.49f);
+        vm->pos = ZunVec3(xPos, 82.0f, 0.0f);
         g_AnmManager->DrawNoRotation(vm);
-        if (this->flags.flag0)
+        if (this->flags.flag0 || g_Supervisor.RedrawWholeFrame())
         {
-            vm->pos = ZunVec3(xPos, 122.0f, 0.49f);
+            vm->pos = ZunVec3(xPos, 122.0f, 0.0f);
             g_AnmManager->DrawNoRotation(vm);
         }
-        if (this->flags.flag1)
+        if (this->flags.flag1 || g_Supervisor.RedrawWholeFrame())
         {
-            vm->pos = ZunVec3(xPos, 146.0f, 0.49f);
+            vm->pos = ZunVec3(xPos, 146.0f, 0.0f);
             g_AnmManager->DrawNoRotation(vm);
         }
-        if (this->flags.flag2)
+        if (this->flags.flag2 || g_Supervisor.RedrawWholeFrame())
         {
-            vm->pos = ZunVec3(xPos, 186.0f, 0.49f);
+            vm->pos = ZunVec3(xPos, 186.0f, 0.0f);
             g_AnmManager->DrawNoRotation(vm);
         }
-        if (this->flags.flag3)
+        if (this->flags.flag3 || g_Supervisor.RedrawWholeFrame())
         {
-            vm->pos = ZunVec3(xPos, 206.0f, 0.49f);
+            vm->pos = ZunVec3(xPos, 206.0f, 0.0f);
             g_AnmManager->DrawNoRotation(vm);
         }
-        if (this->flags.flag4)
+        if (this->flags.flag4 || g_Supervisor.RedrawWholeFrame())
         {
-            vm->pos = ZunVec3(xPos, 226.0f, 0.49f);
+            vm->pos = ZunVec3(xPos, 226.0f, 0.0f);
             g_AnmManager->DrawNoRotation(vm);
         }
-        vm->pos = ZunVec3(488.0f, 464.0f, 0.49f);
+        vm->pos = ZunVec3(488.0f, 464.0f, 0.0f);
         g_AnmManager->DrawNoRotation(vm);
-        vm->pos = ZunVec3(0.0, 464.0f, 0.49f);
+        vm->pos = ZunVec3(0.0, 464.0f, 0.0f);
         g_AnmManager->DrawNoRotation(vm);
+
+        vm->flags.isVisible = oldIsVisible;
+        vm->flags.flag1 = oldFlag1;
     }
-    if (this->flags.flag0 || ((g_Supervisor.cfg.opts >> GCOS_DISPLAY_MINIMUM_GRAPHICS & 1) != 0))
+    if (this->flags.flag0 || g_Supervisor.RedrawWholeFrame() || ((g_Supervisor.cfg.opts >> GCOS_DISPLAY_MINIMUM_GRAPHICS & 1) != 0))
     {
         vm = &this->impl->vms[16];
+        u32 oldIsVisible = vm->flags.isVisible;
+        u32 oldFlag1 = vm->flags.flag1;
+        vm->flags.isVisible = 1;
+        vm->flags.flag1 = 1;
         for (idx = 0, xPos = 496.0f; idx < g_GameManager.livesRemaining; idx++, xPos += 16.0f)
         {
-            vm->pos = ZunVec3(xPos, 122.0f, 0.49f);
+            vm->pos = ZunVec3(xPos, 122.0f, 0.0f);
             g_AnmManager->DrawNoRotation(vm);
         }
+        vm->flags.isVisible = oldIsVisible;
+        vm->flags.flag1 = oldFlag1;
     }
-    if (this->flags.flag1 || ((g_Supervisor.cfg.opts >> GCOS_DISPLAY_MINIMUM_GRAPHICS & 1) != 0))
+    if (this->flags.flag1 || g_Supervisor.RedrawWholeFrame() || ((g_Supervisor.cfg.opts >> GCOS_DISPLAY_MINIMUM_GRAPHICS & 1) != 0))
     {
         vm = &this->impl->vms[17];
+        u32 oldIsVisible = vm->flags.isVisible;
+        u32 oldFlag1 = vm->flags.flag1;
+        vm->flags.isVisible = 1;
+        vm->flags.flag1 = 1;
         for (idx = 0, xPos = 496.0f; idx < g_GameManager.bombsRemaining; idx++, xPos += 16.0f)
         {
-            vm->pos = ZunVec3(xPos, 146.0f, 0.49f);
+            vm->pos = ZunVec3(xPos, 146.0f, 0.0f);
             g_AnmManager->DrawNoRotation(vm);
         }
+        vm->flags.isVisible = oldIsVisible;
+        vm->flags.flag1 = oldFlag1;
     }
-    if (this->flags.flag2 || ((g_Supervisor.cfg.opts >> GCOS_DISPLAY_MINIMUM_GRAPHICS & 1) != 0))
+    if (this->flags.flag2 || g_Supervisor.RedrawWholeFrame() || ((g_Supervisor.cfg.opts >> GCOS_DISPLAY_MINIMUM_GRAPHICS & 1) != 0))
     {
         VertexDiffuseXyzrhw vertices[4];
         if (g_GameManager.currentPower > 0)
@@ -1236,8 +1262,16 @@ void Gui::DrawGameScene()
             if (128 <= g_GameManager.currentPower)
             {
                 vm = &this->impl->vms[18];
+                u32 oldIsVisible = vm->flags.isVisible;
+                u32 oldFlag1 = vm->flags.flag1;
+                vm->flags.isVisible = 1;
+                vm->flags.flag1 = 1;
+                
                 vm->pos = ZunVec3(496.0f, 186.0f, 0.0f);
                 g_AnmManager->DrawNoRotation(vm);
+                
+                vm->flags.isVisible = oldIsVisible;
+                vm->flags.flag1 = oldFlag1;
             }
         }
         if (g_GameManager.currentPower < 128)
@@ -1252,12 +1286,12 @@ void Gui::DrawGameScene()
         g_AsciiManager.AddFormatText(&elemPos, "%.9d", g_GameManager.guiScore);
         elemPos = ZunVec3(496.0f, 58.0f, 0.0f);
         g_AsciiManager.AddFormatText(&elemPos, "%.9d", g_GameManager.highScore);
-        if (this->flags.flag3 || ((g_Supervisor.cfg.opts >> 4 & 1) != 0))
+        if (this->flags.flag3 || g_Supervisor.RedrawWholeFrame() || ((g_Supervisor.cfg.opts >> 4 & 1) != 0))
         {
             elemPos = ZunVec3(496.0f, 206.0f, 0.0f);
             g_AsciiManager.AddFormatText(&elemPos, "%d", g_GameManager.grazeInStage);
         }
-        if (this->flags.flag4 || ((g_Supervisor.cfg.opts >> 4 & 1) != 0))
+        if (this->flags.flag4 || g_Supervisor.RedrawWholeFrame() || ((g_Supervisor.cfg.opts >> 4 & 1) != 0))
         {
             elemPos = ZunVec3(496.0f, 226.0f, 0.0f);
             g_AsciiManager.AddFormatText(&elemPos, "%d", g_GameManager.pointItemsCollectedInStage);
@@ -1283,6 +1317,7 @@ void Gui::DrawGameScene()
     {
         this->flags.flag4--;
     }
+    g_Supervisor.cfg.opts = oldOpts;
     return;
 }
 
