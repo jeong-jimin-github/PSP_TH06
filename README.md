@@ -2,7 +2,13 @@
 
 **한국어** | [日本語](README.ja.md) | [English](README.en.md)
 
-![게임 플레이 화면](assets/gameplay.png)
+````carousel
+![게임 타이틀](assets/gameplay_cut1.png)
+<!-- slide -->
+![스테이지 시작](assets/gameplay_cut2.png)
+<!-- slide -->
+![인게임 플레이](assets/gameplay_cut3.png)
+````
 
 [GensokyoClub/th06](https://github.com/GensokyoClub/th06)의 `portable` 브랜치를
 기반으로 만든 **동방홍마향 ~ the Embodiment of Scarlet Devil**(TH06)의 실험적인
