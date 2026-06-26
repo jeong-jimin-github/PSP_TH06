@@ -17,9 +17,11 @@ must supply data from a legally obtained copy of the Japanese PC release.
   music are implemented.
 - The original 640×480 scene is rendered at an exact 1/2 scale inside a
   centered 320×240 viewport with black borders on the PSP's 480×272 display.
+  Custom aspect ratio scaling options (4:3 fit vs 16:9 stretched fullscreen)
+  can be configured in the game options.
 - Textures, streaming, and memory use are tuned for the 32 MiB PSP-1000.
-- Sprite batching, VFPU math, and audio mixing target 60 Hz at the PSP-1000's
-  333/166 MHz clock.
+- Sprite batching, VFPU math (inlined ZunMath functions), optimized bullet logic/array layout,
+  and audio mixing target 60 Hz at the PSP-1000's 333/166 MHz clock.
 - Frame presentation is synchronized to VBlank to prevent screen tearing.
 - Tested with PPSSPP's PSP-1000 memory model. Real-hardware testing is still
   recommended for every release.
@@ -98,21 +100,34 @@ After the first successful build, packaging can be repeated without compiling:
 - BGM uses streamed PCM WAV data and reusable mixer buffers. On PSP, audio is
   queued from the frame loop to avoid real-hardware SDL/thread deadlocks.
 - MIDI, window mode, and color-depth options are hidden because they are not
-  meaningful on PSP. Music can be set to WAV or Off.
+  meaningful on PSP. Music can be set to WAV or Off, and a custom aspect ratio
+  option (4:3 fit vs 16:9 stretched) has been introduced.
 - Configuration, score data, saves, and replays are written beside the EBOOT.
   The generated directory must remain writable.
+- Fixed a display bug where returning to the main menu from game mode resulted
+  in a blank or corrupted screen.
 - `loadtrace.txt` is recreated beside the EBOOT on each launch and records the
   last completed stage-loading step.
 
 ## Development build
 
-The PSP target can also be configured directly inside WSL:
+The PSP target can be configured and built inside WSL or on macOS:
+
+**WSL (Linux):**
 
 ```bash
 export PSPDEV=/usr/local/pspdev
 export PATH="$PSPDEV/bin:$PATH"
 psp-cmake -S . -B build/psp -DCMAKE_BUILD_TYPE=Release
 cmake --build build/psp -j2
+```
+
+**macOS:**
+
+On macOS, you can use the provided build script to automate dependency setup and compilation:
+
+```bash
+./scripts/build_psp_mac.sh
 ```
 
 `TH06_AUTOTEST_FRAMES`, `TH06_AUTOTEST_INPUT`, and
